@@ -1,0 +1,28 @@
+body {
+    font-family: sans-serif;
+    padding: 20px;
+}
+
+#canvas {
+    position: relative;
+    width: 100%;
+    height: 80vh;
+    border: 2px dashed #ccc;
+    margin-top: 20px;
+}
+
+.note {
+    position: absolute;
+    background: #fffb91;
+    padding: 10px;
+    border-radius: 5px;
+    min-width: 100px;
+    min-height: 50px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    cursor: move;
+}
+
+#contextMenu {
+    z-index: 9999;
+    width: 160px;
+}

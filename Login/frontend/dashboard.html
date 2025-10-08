@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Essentra Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  </head>
+  <body
+    class="relative flex min-h-screen flex-col bg-white overflow-x-hidden"
+    style='font-family: Inter, "Noto Sans", sans-serif;'
+  >
+    <div class="layout-container flex h-full grow flex-col">
+      <!-- Header -->
+      <header
+        class="flex items-center justify-between border-b border-[#f0f2f4] px-10 py-3"
+      >
+        <div class="flex items-center gap-4 text-[#111418]">
+          <div class="size-4">
+            <svg viewBox="0 0 48 48" fill="none">
+              <path
+                d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z"
+                fill="currentColor"
+              />
+            </svg>
+          </div>
+          <h2 class="text-lg font-bold">Essentra</h2>
+        </div>
+
+        <!-- Right side -->
+        <div class="flex flex-1 justify-end gap-8 items-center">
+          <!-- Search -->
+          <label class="flex min-w-40 !h-10 max-w-64">
+            <div class="flex w-full items-stretch rounded-xl h-full">
+              <div
+                class="flex items-center justify-center pl-4 text-[#637588] bg-[#f0f2f4] rounded-l-xl"
+              >
+                🔍
+              </div>
+              <input
+                placeholder="Search"
+                id="search"
+                class="form-input w-full border-none bg-[#f0f2f4] rounded-r-xl px-4 text-base focus:ring-0"
+              />
+            </div>
+          </label>
+
+          <!-- Profile -->
+          <div class="relative">
+            <button id="profile-btn">
+              <div
+                class="bg-center bg-cover rounded-full size-10"
+                style='background-image: url("https://ui-avatars.com/api/?name=User&background=random");'
+              ></div>
+            </button>
+            <div
+              id="profile-menu"
+              class="absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white border border-gray-200 hidden"
+            >
+              <a
+                href="#"
+                id="settings-btn"
+                class="block px-4 py-2 text-sm hover:bg-gray-100"
+                >Settings</a
+              >
+              <button
+                id="logout-btn"
+                class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Boards -->
+      <main class="px-40 flex flex-1 justify-center py-5">
+        <div class="flex flex-col max-w-[960px] flex-1">
+          <div class="flex justify-between items-center p-4">
+            <p class="text-2xl font-bold">Boards</p>
+            <button
+              id="new-board-btn"
+              class="bg-[#f0f2f4] px-4 py-2 rounded-xl font-medium"
+            >
+              + New Board
+            </button>
+          </div>
+          <div
+            id="boards-container"
+            class="grid grid-cols-[repeat(auto-fit,minmax(158px,1fr))] gap-3 p-4"
+          ></div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Modal -->
+    <div
+      id="modal-overlay"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center hidden"
+    >
+      <div class="bg-white rounded-xl shadow-lg w-96 p-6" id="modal-box">
+        <h3 class="text-lg font-bold mb-4">Create New Board</h3>
+        <input
+          id="board-name"
+          type="text"
+          placeholder="Board name"
+          class="w-full border px-3 py-2 rounded-lg mb-4"
+        />
+        <div class="flex justify-end gap-2 items-center">
+          <button id="cancel-modal" class="px-4 py-2 rounded-lg bg-gray-200">
+            Cancel
+          </button>
+          <button
+            id="create-board"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white"
+          >
+            <span>Create</span>
+            <!-- Spinner hidden initially -->
+            <svg
+              id="loading-spinner"
+              class="hidden animate-spin h-5 w-5 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a12 12 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const profileBtn = document.getElementById("profile-btn");
+      const profileMenu = document.getElementById("profile-menu");
+      const newBoardBtn = document.getElementById("new-board-btn");
+      const modalOverlay = document.getElementById("modal-overlay");
+      const boardNameInput = document.getElementById("board-name");
+      const cancelModalBtn = document.getElementById("cancel-modal");
+      const createBoardBtn = document.getElementById("create-board");
+      const spinner = document.getElementById("loading-spinner");
+      const logoutBtn = document.getElementById("logout-btn");
+
+      // Toggle profile menu
+      profileBtn.addEventListener("click", () => {
+        profileMenu.classList.toggle("hidden");
+      });
+      document.addEventListener("click", (e) => {
+        if (!profileBtn.contains(e.target) && !profileMenu.contains(e.target)) {
+          profileMenu.classList.add("hidden");
+        }
+      });
+
+      // Logout
+      logoutBtn.addEventListener("click", async () => {
+        try {
+          await fetch("/auth/logout", { method: "POST", credentials: "include" });
+          window.location.href = "/login.html";
+        } catch (err) {
+          console.error("Logout failed:", err);
+        }
+      });
+
+      // Open modal
+      newBoardBtn.addEventListener("click", () => {
+        modalOverlay.classList.remove("hidden");
+        document.body.classList.add("overflow-hidden");
+        boardNameInput.focus();
+      });
+
+      // Close modal
+      function closeModal() {
+        modalOverlay.classList.add("hidden");
+        document.body.classList.remove("overflow-hidden");
+        boardNameInput.value = "";
+        spinner.classList.add("hidden");
+        createBoardBtn.disabled = false;
+      }
+      cancelModalBtn.addEventListener("click", closeModal);
+      modalOverlay.addEventListener("click", (e) => {
+        if (e.target === modalOverlay) closeModal();
+      });
+
+      // Keyboard actions
+      document.addEventListener("keydown", (e) => {
+        if (modalOverlay.classList.contains("hidden")) return;
+        if (e.key === "Escape") closeModal();
+        if (e.key === "Enter") submitBoard();
+      });
+
+      // Submit board
+      async function submitBoard() {
+        const name = boardNameInput.value.trim();
+        if (!name) return;
+        spinner.classList.remove("hidden");
+        createBoardBtn.disabled = true;
+        try {
+          const res = await fetch("/boards", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: name }),
+          });
+          if (!res.ok) throw new Error("Failed to create board");
+          closeModal();
+          loadBoards();
+        } catch (err) {
+          alert(err.message);
+          spinner.classList.add("hidden");
+          createBoardBtn.disabled = false;
+        }
+      }
+      createBoardBtn.addEventListener("click", submitBoard);
+
+      // Load boards
+      async function loadBoards() {
+        try {
+          const res = await fetch("/boards", {
+            method: "GET",
+            credentials: "include",
+          });
+          if (!res.ok) throw new Error("Failed to fetch boards");
+          const boards = await res.json();
+          const container = document.getElementById("boards-container");
+          container.innerHTML = boards
+            .map(
+              (b) => `
+              <div class="flex flex-col gap-2 cursor-pointer hover:scale-105 transition"
+                   onclick="window.location.href='/board.html?id=${b.id}'">
+                <div class="w-full aspect-square bg-gray-200 rounded-xl flex items-center justify-center">
+                  <span class="text-gray-600">📋</span>
+                </div>
+                <p class="font-medium text-center">${b.title}</p>
+              </div>`
+            )
+            .join("");
+        } catch (err) {
+          console.error("Error loading boards:", err);
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", loadBoards);
+    </script>
+  </body>
+</html>

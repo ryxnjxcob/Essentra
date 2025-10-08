@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Visual Notes App</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #333; }
+    .board { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 5px; }
+    .board-title { font-weight: bold; margin-bottom: 5px; }
+    #board-list { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Boards</h1>
+
+  <form id="create-board-form">
+    <input type="text" id="board-title" placeholder="New board title" required>
+    <button type="submit">Create Board</button>
+  </form>
+
+  <div id="board-list"></div>
+
+  <script>
+    const API_BASE = "http://localhost:8000";
+
+    async function fetchBoards() {
+      const res = await fetch(`${API_BASE}/boards/`);
+      const boards = await res.json();
+      const list = document.getElementById("board-list");
+      list.innerHTML = "";
+      boards.forEach(b => {
+        const div = document.createElement("div");
+        div.className = "board";
+        div.innerHTML = `<div class="board-title">${b.title}</div>`;
+        list.appendChild(div);
+      });
+    }
+
+    document.getElementById("create-board-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("board-title").value;
+      await fetch(`${API_BASE}/boards/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title })
+      });
+      document.getElementById("board-title").value = "";
+      fetchBoards();
+    });
+
+    fetchBoards();
+  </script>
+</body>
+</html>

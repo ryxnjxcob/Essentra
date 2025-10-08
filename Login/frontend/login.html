@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Log In</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet"/>
+</head>
+
+<body class="bg-gray-900 text-white">
+<div class="flex h-screen">
+  <!-- Left Section -->
+  <div class="hidden lg:flex w-1/2 flex-col justify-between p-12 bg-cover bg-center"
+       style="background-image: url('https://source.unsplash.com/900x1200/?technology,abstract');">
+    <div>
+      <span class="text-white text-4xl font-bold font-montserrat">Essentra</span>
+    </div>
+    <div class="text-white">
+      <h1 class="text-5xl font-bold leading-tight">Capturing Moments,<br/>Creating Memories</h1>
+    </div>
+  </div>
+
+  <!-- Right Section -->
+  <div class="w-full lg:w-1/2 flex items-center justify-center p-8">
+    <div class="w-full max-w-md">
+      <h2 class="text-4xl font-bold mb-4">Welcome back</h2>
+      <p class="text-gray-400 mb-8">
+        Don’t have an account?
+        <a href="create_account.html" class="text-purple-400 font-medium">Create an account</a>
+      </p>
+
+      <!-- Direct form submit -->
+      <form action="http://127.0.0.1:8000/auth/login" method="POST" class="space-y-4">
+        <div>
+          <input name="email" type="email" required
+                 placeholder="Email"
+                 class="w-full bg-gray-800 border border-gray-700 text-white p-4 rounded-lg
+                        focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+        </div>
+
+        <div>
+          <input name="password" type="password" required
+                 placeholder="Password"
+                 class="w-full bg-gray-800 border border-gray-700 text-white p-4 rounded-lg
+                        focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+        </div>
+
+        <div class="flex justify-end">
+          <a href="forgotpass.html" class="text-sm text-purple-400 font-medium">Forgot Password?</a>
+        </div>
+
+        <button type="submit"
+                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-4 rounded-lg
+                       transition duration-300">
+          Log in
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+</body>
+</html>

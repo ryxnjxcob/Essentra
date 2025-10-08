@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+        <title>Essentra Whiteboarding</title>
+        <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://fonts.googleapis.com/icon?family=Material+Icons"
+            rel="stylesheet"
+        />
+        <style>
+            body {
+                font-family: "Inter", sans-serif;
+                background-color: #f9fafb;
+                background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+                background-size: 16px 16px;
+            }
+            .calligraphy {
+                font-family: "Dancing Script", cursive;
+            }
+            .cartoon-btn {
+                border: 2px solid #1f2937;
+                box-shadow: 4px 4px 0px #1f2937;
+                transition: all 0.2s cubic-bezier(0.87, -0.41, 0.19, 1.44);
+            }
+            .cartoon-btn:active {
+                transform: translateY(4px) translateX(4px);
+                box-shadow: 0px 0px 0px #1f2937;
+            }
+            #canvas {
+                flex-grow: 1;
+                position: relative;
+                overflow: hidden;
+            }
+            .note {
+                position: absolute;
+                width: 160px;
+                min-height: 100px;
+                padding: 10px;
+                border-radius: 8px;
+                background: #fff59d;
+                box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.15);
+                cursor: move;
+                resize: both;
+                overflow: auto;
+            }
+            .note[contenteditable="true"]:focus {
+                outline: 2px dashed #4f46e5;
+            }
+            /* AI Modal */
+            #aiModal {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 50;
+            }
+            #aiModalContent {
+                background: white;
+                padding: 1.5rem;
+                border-radius: 0.5rem;
+                width: 400px;
+                max-width: 90%;
+            }
+        </style>
+    </head>
+    <body class="overflow-hidden">
+        <div class="h-screen w-screen flex flex-col">
+            <!-- Header -->
+            <header
+                class="flex justify-between items-center p-2 shadow-sm bg-white relative"
+            >
+                <div class="flex items-center gap-2">
+                    <button class="p-1.5 rounded hover:bg-gray-100">
+                        <span class="material-icons text-gray-600">menu</span>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <span
+                            class="text-2xl font-bold text-gray-800 calligraphy"
+                            >Essentra</span
+                        >
+                    </div>
+                </div>
+                <div class="absolute left-1/2 -translate-x-1/2">
+                    <button
+                        class="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-gray-100 border border-gray-300"
+                    >
+                        <span class="material-icons text-gray-600 text-base"
+                            >edit_note</span
+                        >
+                        <span class="text-sm font-medium text-gray-700"
+                            >Switch to Notepad</span
+                        >
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button
+                        class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center"
+                    >
+                        <span class="material-icons text-gray-600">person</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Canvas -->
+            <main id="canvas"></main>
+
+            <!-- Floating Add Note -->
+            <div class="fixed bottom-6 left-1/2 -translate-x-1/2">
+                <button
+                    id="addNoteBtn"
+                    class="p-5 rounded-full bg-fuchsia-300 text-gray-900 cartoon-btn shadow-xl"
+                >
+                    <span class="material-icons">edit</span>
+                </button>
+            </div>
+
+            <!-- Zoom + Help -->
+            <div
+                class="fixed bottom-6 right-6 flex flex-col gap-3 items-center"
+            >
+                <div
+                    class="bg-white shadow-md rounded-full flex items-center gap-1 p-2"
+                >
+                    <button
+                        id="zoomOutBtn"
+                        class="p-2 rounded-full hover:bg-gray-100"
+                    >
+                        <span class="material-icons text-gray-700">remove</span>
+                    </button>
+                    <span
+                        id="zoomLevel"
+                        class="text-sm font-medium text-gray-700"
+                        >100%</span
+                    >
+                    <button
+                        id="zoomInBtn"
+                        class="p-2 rounded-full hover:bg-gray-100"
+                    >
+                        <span class="material-icons text-gray-700">add</span>
+                    </button>
+                </div>
+                <button
+                    id="helpBtn"
+                    class="p-3 rounded-full bg-white shadow-md hover:bg-gray-100"
+                >
+                    <span class="material-icons text-gray-700"
+                        >help_outline</span
+                    >
+                </button>
+            </div>
+        </div>
+
+        <!-- Custom Context Menu -->
+        <div
+            id="contextMenu"
+            class="hidden fixed bg-white border border-gray-300 rounded-md shadow-lg text-sm"
+        >
+            <ul>
+                <li
+                    id="summarizeOption"
+                    class="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                >
+                    🧠 AI Summarize
+                </li>
+                <li
+                    id="deleteOption"
+                    class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-red-600"
+                >
+                    🗑️ Delete
+                </li>
+            </ul>
+        </div>
+
+        <!-- AI Modal -->
+        <div
+            id="aiModal"
+            style="display: none"
+            class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+        >
+            <div
+                id="aiModalContent"
+                class="bg-white p-6 rounded-lg w-96 max-w-[90%]"
+            >
+                <h2 class="text-lg font-bold mb-2">AI Summary</h2>
+                <textarea
+                    id="aiText"
+                    class="w-full h-48 p-2 border rounded"
+                    readonly
+                ></textarea>
+                <button
+                    id="closeAiModal"
+                    class="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+                >
+                    Close
+                </button>
+            </div>
+        </div>
+        <script>
+            const canvas = document.getElementById("canvas");
+            const addNoteBtn = document.getElementById("addNoteBtn");
+            const boardId = new URLSearchParams(window.location.search).get(
+                "id",
+            );
+            const token = localStorage.getItem("access_token");
+
+            let activeNote = null,
+                offsetX = 0,
+                offsetY = 0;
+            let zoom = 1;
+
+            // API Helper
+            async function apiFetch(url, options = {}) {
+                const res = await fetch(url, {
+                    ...options,
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                        ...(options.headers || {}),
+                    },
+                });
+                if (!res.ok) {
+                    console.error("API error", res.status, await res.text());
+                    return null;
+                }
+                return res.json().catch(() => null);
+            }
+
+            // CRUD
+            async function loadNotes() {
+                const notes = await apiFetch(`/boards/${boardId}/notes`);
+                if (notes) notes.forEach(renderNote);
+            }
+            async function createNote() {
+                const newNote = await apiFetch(`/boards/${boardId}/notes`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        text: "New Note",
+                        x: 50,
+                        y: 50,
+                        width: 160,
+                        height: 100,
+                    }),
+                });
+                if (newNote) renderNote(newNote);
+            }
+            async function updateNotePosition(noteEl) {
+                if (!document.body.contains(noteEl)) return;
+                await apiFetch(
+                    `/boards/${boardId}/notes/${noteEl.dataset.id}`,
+                    {
+                        method: "PUT",
+                        body: JSON.stringify({
+                            x: parseInt(noteEl.style.left),
+                            y: parseInt(noteEl.style.top),
+                            width: noteEl.offsetWidth,
+                            height: noteEl.offsetHeight,
+                        }),
+                    },
+                );
+            }
+            async function updateNoteText(noteEl) {
+                if (!document.body.contains(noteEl)) return;
+                await apiFetch(
+                    `/boards/${boardId}/notes/${noteEl.dataset.id}`,
+                    {
+                        method: "PUT",
+                        body: JSON.stringify({ text: noteEl.textContent }),
+                    },
+                );
+            }
+            async function saveNoteSize(noteEl) {
+                if (!document.body.contains(noteEl)) return;
+                await apiFetch(
+                    `/boards/${boardId}/notes/${noteEl.dataset.id}`,
+                    {
+                        method: "PUT",
+                        body: JSON.stringify({
+                            width: noteEl.offsetWidth,
+                            height: noteEl.offsetHeight,
+                        }),
+                    },
+                );
+            }
+            function deleteNote(noteEl) {
+                const id = noteEl.dataset.id;
+                noteEl.remove();
+                fetch(`/boards/${boardId}/notes/${id}`, {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                })
+                    .then((res) =>
+                        res.ok
+                            ? console.log(`Note ${id} deleted`)
+                            : Promise.reject(),
+                    )
+                    .catch((err) => console.error(err));
+            }
+
+            // Context Menu
+            function attachContextMenu(noteEl) {
+                noteEl.addEventListener("contextmenu", async (e) => {
+                    e.preventDefault();
+                    const menu = document.getElementById("contextMenu");
+                    menu.style.top = e.clientY + "px";
+                    menu.style.left = e.clientX + "px";
+                    menu.classList.remove("hidden");
+
+                    const deleteOption = menu.querySelector("#deleteOption");
+                    const summarizeOption =
+                        menu.querySelector("#summarizeOption");
+
+                    // Remove previous listeners
+                    deleteOption.replaceWith(deleteOption.cloneNode(true));
+                    summarizeOption.replaceWith(
+                        summarizeOption.cloneNode(true),
+                    );
+
+                    menu.querySelector("#deleteOption").addEventListener(
+                        "click",
+                        () => {
+                            deleteNote(noteEl);
+                            menu.classList.add("hidden");
+                        },
+                    );
+
+                    menu.querySelector("#summarizeOption").addEventListener(
+                        "click",
+                        async () => {
+                            menu.classList.add("hidden");
+                            try {
+                                const res = await fetch("/summarize", {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${token}`,
+                                    },
+                                    body: JSON.stringify({
+                                        text: noteEl.textContent,
+                                    }),
+                                });
+                                if (!res.ok)
+                                    throw new Error("Failed to summarize");
+                                const data = await res.json();
+                                document.getElementById("aiText").value =
+                                    data.summary;
+                                document.getElementById(
+                                    "aiModal",
+                                ).style.display = "flex";
+                            } catch (err) {
+                                console.error(err);
+                                alert("Error generating summary");
+                            }
+                        },
+                    );
+                });
+            }
+
+            // Modal close
+            document
+                .getElementById("closeAiModal")
+                .addEventListener("click", () => {
+                    document.getElementById("aiModal").style.display = "none";
+                });
+
+            // Hide context menu on click outside
+            document.addEventListener("click", () =>
+                document.getElementById("contextMenu").classList.add("hidden"),
+            );
+
+            // Render Note
+            function renderNote(note) {
+                const noteEl = document.createElement("div");
+                noteEl.className = "note";
+                noteEl.style.left = note.x + "px";
+                noteEl.style.top = note.y + "px";
+                if (note.width) noteEl.style.width = note.width + "px";
+                if (note.height) noteEl.style.height = note.height + "px";
+                noteEl.textContent = note.text;
+                noteEl.dataset.id = note.id;
+                noteEl.contentEditable = true;
+
+                noteEl.onmousedown = (e) => startDrag(e, noteEl);
+                noteEl.onblur = () => updateNoteText(noteEl);
+
+                attachContextMenu(noteEl);
+                canvas.appendChild(noteEl);
+            }
+
+            // Drag & Resize
+            function startDrag(e, noteEl) {
+                const rect = noteEl.getBoundingClientRect();
+                const isResizing =
+                    e.offsetX > rect.width - 16 || e.offsetY > rect.height - 16;
+                if (isResizing) {
+                    noteEl.addEventListener(
+                        "mouseup",
+                        () => saveNoteSize(noteEl),
+                        { once: true },
+                    );
+                    return;
+                }
+
+                activeNote = noteEl;
+                offsetX = e.clientX - noteEl.offsetLeft;
+                offsetY = e.clientY - noteEl.offsetTop;
+                document.addEventListener("mousemove", dragNote);
+                document.addEventListener("mouseup", stopDrag);
+            }
+            function dragNote(e) {
+                if (!activeNote) return;
+                activeNote.style.left = e.clientX - offsetX + "px";
+                activeNote.style.top = e.clientY - offsetY + "px";
+            }
+            function stopDrag() {
+                if (activeNote) updateNotePosition(activeNote);
+                document.removeEventListener("mousemove", dragNote);
+                document.removeEventListener("mouseup", stopDrag);
+                activeNote = null;
+            }
+
+            // Zoom & Help
+            document
+                .getElementById("zoomInBtn")
+                .addEventListener("click", () => {
+                    zoom += 0.1;
+                    canvas.style.transform = `scale(${zoom})`;
+                    document.getElementById("zoomLevel").textContent =
+                        Math.round(zoom * 100) + "%";
+                });
+            document
+                .getElementById("zoomOutBtn")
+                .addEventListener("click", () => {
+                    zoom = Math.max(0.2, zoom - 0.1);
+                    canvas.style.transform = `scale(${zoom})`;
+                    document.getElementById("zoomLevel").textContent =
+                        Math.round(zoom * 100) + "%";
+                });
+            document.getElementById("helpBtn").addEventListener("click", () => {
+                alert(
+                    "👉 Right-click a note to delete\n✏️ Click text to edit\n📦 Drag to move\n↔ Resize with corner handle",
+                );
+            });
+
+            addNoteBtn.addEventListener("click", createNote);
+            loadNotes();
+        </script>
+    </body>
+</html>
