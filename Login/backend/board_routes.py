@@ -1,22 +1,48 @@
+# board_routes.py
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from typing import List
 from pydantic import BaseModel
 import uuid
 
-from .models import Notification
 from .database import get_database
-from .models import Board, User, Collaboration
-from .dependencies import get_current_user  # pulls user from JWT token
+from .models import Board, Note, User, Collaboration, Notification
+from .dependencies import get_current_user
+from .schemas import NoteCreate, NoteUpdate, NoteResponse
 from .ws_routes import notify_user
 
+router = APIRouter(tags=["boards"])
 
-router = APIRouter()
+
+# ------------------------
+# Helper: Access Check
+# ------------------------
+def user_has_access(db: Session, board_id: int, user: User):
+    """Returns board if the user owns it or is an approved collaborator."""
+    board = db.query(Board).filter(Board.id == board_id).first()
+    if not board:
+        return None
+
+    # Owner
+    if board.user_id == user.id:
+        return board
+
+    # Collaborator
+    collab = (
+        db.query(Collaboration)
+        .filter_by(board_id=board_id, user_id=user.id, status="approved")
+        .first()
+    )
+
+    if collab:
+        return board
+
+    return None
 
 
-# ---------------------------
-# Pydantic Schemas
-# ---------------------------
+# ------------------------
+# BOARD CRUD
+# ------------------------
 class BoardCreate(BaseModel):
     title: str
 
@@ -24,175 +50,160 @@ class BoardCreate(BaseModel):
 class BoardOut(BaseModel):
     id: int
     title: str
-    collaboration_code: str | None = None  # ✅ add this line
+    collaboration_code: str | None
 
     class Config:
         orm_mode = True
 
 
-class AccessRequest(BaseModel):
-    board_id: int
-    requester_id: int  # optional if you want to validate
-
-
-class CodeRequest(BaseModel):
-    code: str
-
-
-class AccessCode(BaseModel):
-    code: str
-
-
-# ---------------------------
-# Routes
-# ---------------------------
-
-
-# Create a new board
-@router.post("", response_model=BoardOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=BoardOut, status_code=201)
 def create_board(
-    board: BoardCreate,
+    data: BoardCreate,
     db: Session = Depends(get_database),
     user: User = Depends(get_current_user),
 ):
-    new_board = Board(
-        title=board.title,
-        user_id=user.id,
-        collaboration_code=str(uuid.uuid4()),  # ✅ generate unique code
+    board = Board(
+        title=data.title, user_id=user.id, collaboration_code=str(uuid.uuid4())
     )
-    db.add(new_board)
+    db.add(board)
     db.commit()
-    db.refresh(new_board)
-    return new_board
+    db.refresh(board)
+    return board
 
 
-# Get all boards for the logged-in user
 @router.get("", response_model=List[BoardOut])
 def list_boards(
     db: Session = Depends(get_database),
     user: User = Depends(get_current_user),
 ):
-    boards = db.query(Board).filter(Board.user_id == user.id).all()
-    return boards
+    return db.query(Board).filter(Board.user_id == user.id).all()
 
 
-# Get a single board (only if owned by user)
 @router.get("/{board_id}", response_model=BoardOut)
 def get_board(
     board_id: int,
     db: Session = Depends(get_database),
     user: User = Depends(get_current_user),
 ):
-    board = (
-        db.query(Board).filter(Board.id == board_id, Board.user_id == user.id).first()
-    )
+    board = user_has_access(db, board_id, user)
     if not board:
-        raise HTTPException(status_code=404, detail="Board not found")
+        raise HTTPException(403, "Access denied")
     return board
 
 
-# Delete a board (only if owned by user)
-@router.delete("/{board_id}", response_model=dict)
+@router.delete("/{board_id}")
 def delete_board(
     board_id: int,
     db: Session = Depends(get_database),
     user: User = Depends(get_current_user),
 ):
-    board = (
-        db.query(Board).filter(Board.id == board_id, Board.user_id == user.id).first()
-    )
-    if not board:
-        raise HTTPException(status_code=404, detail="Board not found")
+    board = user_has_access(db, board_id, user)
+    if not board or board.user_id != user.id:
+        raise HTTPException(403, "Only owner can delete board")
 
     db.delete(board)
     db.commit()
-    return {"message": f"Board {board_id} deleted"}
+    return {"message": "Board deleted"}
 
 
-@router.post("/request-access", response_model=dict)
-async def request_access(
-    body: AccessCode,
-    db: Session = Depends(get_database),
-    requester: User = Depends(get_current_user),
-):
-    code = body.code
-    board: Board = db.query(Board).filter(Board.collaboration_code == code).first()
-    if not board:
-        raise HTTPException(status_code=404, detail="Board not found")
-
-    existing = (
-        db.query(Collaboration)
-        .filter(
-            Collaboration.board_id == board.id, Collaboration.user_id == requester.id
-        )
-        .first()
-    )
-    if existing:
-        raise HTTPException(status_code=400, detail="Already requested or collaborator")
-
-    collaboration = Collaboration(
-        board_id=board.id, user_id=requester.id, status="pending"
-    )
-    db.add(collaboration)
-    db.commit()
-
-    # ✅ Create a persistent notification for the board owner
-    notification = Notification(
-        user_id=board.user_id,
-        type="access_request",
-        message=f"{requester.first_name} {requester.last_name} requested access to '{board.title}'",
-        board_id=board.id,
-    )
-    db.add(notification)
-    db.commit()
-
-    # ✅ Send via WebSocket too
-    await notify_user(
-        board.user_id,
-        {
-            "type": "access_request",
-            "board_id": board.id,
-            "board_title": board.title,
-            "requester_name": f"{requester.first_name} {requester.last_name}",
-            "request_id": collaboration.id,
-        },
-    )
-
-    return {"message": "Access request sent"}
-
-
-@router.post("/collaboration/{collaboration_id}/respond", response_model=dict)
-def respond_collaboration(
-    collaboration_id: int,
-    approve: bool = Body(...),
+# ------------------------
+# NOTE CRUD (COLLAB-SAFE)
+# ------------------------
+@router.post("/{board_id}/notes", response_model=NoteResponse)
+def create_note(
+    board_id: int,
+    data: NoteCreate,
     db: Session = Depends(get_database),
     user: User = Depends(get_current_user),
 ):
-    collab = (
-        db.query(Collaboration)
-        .join(Board)
-        .filter(Collaboration.id == collaboration_id, Board.user_id == user.id)
-        .first()
-    )
-    if not collab:
-        raise HTTPException(status_code=404, detail="Request not found")
+    board = user_has_access(db, board_id, user)
+    if not board:
+        raise HTTPException(403, "Access denied")
 
-    collab.status = "approved" if approve else "rejected"
+    note = Note(
+        board_id=board_id,
+        text=data.text,
+        x=data.x,
+        y=data.y,
+        width=data.width,
+        height=data.height,
+        note_type=data.note_type,
+        extra_data=data.extra_data or {},
+    )
+    db.add(note)
     db.commit()
-    return {"message": f"Collaboration {'approved' if approve else 'rejected'}"}
+    db.refresh(note)
+    return NoteResponse.from_orm(note)
 
 
-@router.get("/notifications")
-def get_notifications(
-    db: Session = Depends(get_database), current_user: User = Depends(get_current_user)
+@router.get("/{board_id}/notes", response_model=List[NoteResponse])
+def list_notes(
+    board_id: int,
+    db: Session = Depends(get_database),
+    user: User = Depends(get_current_user),
 ):
-    notifs = (
-        db.query(Notification)
-        .filter_by(user_id=current_user.id, read=False)
-        .order_by(Notification.created_at.desc())
-        .all()
-    )
-    return [
-        {"id": n.id, "type": n.type, "message": n.message, "board_id": n.board_id}
-        for n in notifs
-    ]
+    board = user_has_access(db, board_id, user)
+    if not board:
+        raise HTTPException(403, "Access denied")
+
+    notes = db.query(Note).filter(Note.board_id == board_id).all()
+    return [NoteResponse.from_orm(n) for n in notes]
+
+
+@router.put("/{board_id}/notes/{note_id}", response_model=NoteResponse)
+def update_note(
+    board_id: int,
+    note_id: int,
+    update: NoteUpdate,
+    db: Session = Depends(get_database),
+    user: User = Depends(get_current_user),
+):
+    board = user_has_access(db, board_id, user)
+    if not board:
+        raise HTTPException(403, "Access denied")
+
+    note = db.query(Note).filter(Note.id == note_id, Note.board_id == board_id).first()
+
+    if not note:
+        raise HTTPException(404, "Note not found")
+
+    # Apply updates
+    if update.text is not None:
+        note.text = update.text
+    if update.x is not None:
+        note.x = update.x
+    if update.y is not None:
+        note.y = update.y
+    if update.width is not None:
+        note.width = update.width
+    if update.height is not None:
+        note.height = update.height
+    if update.note_type is not None:
+        note.note_type = update.note_type
+    if update.extra_data is not None:
+        note.extra_data.update(update.extra_data)
+
+    db.commit()
+    db.refresh(note)
+    return NoteResponse.from_orm(note)
+
+
+@router.delete("/{board_id}/notes/{note_id}")
+def delete_note(
+    board_id: int,
+    note_id: int,
+    db: Session = Depends(get_database),
+    user: User = Depends(get_current_user),
+):
+    board = user_has_access(db, board_id, user)
+    if not board:
+        raise HTTPException(403, "Access denied")
+
+    note = db.query(Note).filter(Note.id == note_id, Note.board_id == board_id).first()
+
+    if not note:
+        raise HTTPException(404, "Note not found")
+
+    db.delete(note)
+    db.commit()
+    return {"message": "Note deleted"}

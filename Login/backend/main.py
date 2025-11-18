@@ -173,7 +173,6 @@ def logout(response: Response):
 app.include_router(auth_router)
 app.include_router(board_router, prefix="/boards", tags=["boards"])
 app.include_router(note_router, prefix="/notes", tags=["notes"])
-app.include_router(note_routes.router)
 app.include_router(summarize.router)
 
 # -------------------------------
@@ -188,17 +187,18 @@ app.add_middleware(
 )
 
 # -------------------------------
-# Static frontend
+# Media uploads
 # -------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MEDIA_DIR = os.path.join(BASE_DIR, "media")
+os.makedirs(MEDIA_DIR, exist_ok=True)
+app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
+
+# -------------------------------
+# Static frontend
+# -------------------------------
+
 FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
 
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
-
-# -------------------------------
-# Media uploads
-# -------------------------------
-MEDIA_DIR = os.path.join(BASE_DIR, "..", "media")
-os.makedirs(MEDIA_DIR, exist_ok=True)
-app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
