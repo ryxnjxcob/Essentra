@@ -20,6 +20,7 @@ import hashlib
 import logging
 import os
 
+
 # Local imports
 from .config import get_settings
 from .database import get_database, db_manager
@@ -178,10 +179,7 @@ app.include_router(summarize.router)
 # -------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ],  # ✅ frontend now served by FastAPI
+    allow_origins=["*"],  # ✅ frontend now served by FastAPI
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -194,3 +192,4 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
 
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")

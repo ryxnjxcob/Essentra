@@ -29,6 +29,32 @@
 
                 <!-- Right side -->
                 <div class="flex flex-1 justify-end gap-8 items-center">
+                    <!-- 🔔 Notification Bell -->
+                    <div id="notification-container" class="relative">
+                        <button id="notification-btn" class="notification-bell">
+                            🔔
+                            <span id="notification-count" class="hidden"
+                                >0</span
+                            >
+                        </button>
+
+                        <!-- Dropdown Panel -->
+                        <div
+                            id="notification-panel"
+                            class="hidden absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+                        >
+                            <h3
+                                class="px-4 py-2 text-sm font-semibold border-b border-gray-100 bg-gray-50"
+                            >
+                                Notifications
+                            </h3>
+                            <ul
+                                id="notification-list"
+                                class="max-h-64 overflow-y-auto divide-y divide-gray-100"
+                            ></ul>
+                        </div>
+                    </div>
+
                     <!-- Search -->
                     <label class="flex min-w-40 !h-10 max-w-64">
                         <div
@@ -83,12 +109,20 @@
                 <div class="flex flex-col max-w-[960px] flex-1">
                     <div class="flex justify-between items-center p-4">
                         <p class="text-2xl font-bold">Boards</p>
-                        <button
-                            id="new-board-btn"
-                            class="bg-[#f0f2f4] px-4 py-2 rounded-xl font-medium"
-                        >
-                            + New Board
-                        </button>
+                        <div class="flex gap-2">
+                            <button
+                                id="new-board-btn"
+                                class="bg-[#f0f2f4] px-4 py-2 rounded-xl font-medium"
+                            >
+                                + New Board
+                            </button>
+                            <button
+                                id="join-board-btn"
+                                class="bg-[#e9f6ff] px-4 py-2 rounded-xl font-medium text-blue-600"
+                            >
+                                Join Board
+                            </button>
+                        </div>
                     </div>
                     <div
                         id="boards-container"
@@ -98,7 +132,7 @@
             </main>
         </div>
 
-        <!-- Modal -->
+        <!-- New Board Modal -->
         <div
             id="modal-overlay"
             class="fixed inset-0 bg-black/50 flex items-center justify-center hidden"
@@ -123,7 +157,6 @@
                         class="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white"
                     >
                         <span>Create</span>
-                        <!-- Spinner hidden initially -->
                         <svg
                             id="loading-spinner"
                             class="hidden animate-spin h-5 w-5 text-white"
@@ -150,6 +183,171 @@
             </div>
         </div>
 
+        <!-- Delete Confirmation Modal -->
+        <div
+            id="delete-modal-overlay"
+            class="fixed inset-0 bg-black/50 flex items-center justify-center hidden"
+        >
+            <div class="bg-white rounded-xl shadow-lg w-96 p-6 relative">
+                <h3 class="text-lg font-bold mb-4">Delete Board</h3>
+                <p class="mb-6">Are you sure you want to delete this board?</p>
+                <div class="flex justify-end gap-2">
+                    <button
+                        id="cancel-delete"
+                        class="px-4 py-2 rounded-lg bg-gray-200"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        id="confirm-delete"
+                        class="px-4 py-2 rounded-lg bg-red-600 text-white"
+                    >
+                        Delete
+                    </button>
+                </div>
+                <button
+                    id="close-delete-modal"
+                    class="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
+                >
+                    &times;
+                </button>
+            </div>
+        </div>
+
+        <!-- Share Board Modal -->
+        /*
+        <div
+            id="share-modal"
+            class="fixed inset-0 bg-black/50 flex items-center justify-center hidden"
+        >
+            <div class="bg-white rounded-xl shadow-lg w-96 p-6">
+                <h3 class="text-lg font-bold mb-4">Share Board</h3>
+                <p class="mb-2 text-sm text-gray-600">
+                    Send this code to collaborators:
+                </p>
+                <div class="flex items-center gap-2 mb-4">
+                    <input
+                        id="share-code"
+                        type="text"
+                        readonly
+                        class="w-full border px-3 py-2 rounded-lg bg-gray-100"
+                    />
+                    <button
+                        id="copy-code-btn"
+                        class="px-3 py-2 bg-blue-600 text-white rounded-lg"
+                    >
+                        Copy
+                    </button>
+                </div>
+                <div class="flex justify-end">
+                    <button
+                        id="close-share-modal"
+                        class="px-4 py-2 rounded-lg bg-gray-200"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Join Board Modal -->
+        <div
+            id="join-modal"
+            class="fixed inset-0 bg-black/50 flex items-center justify-center hidden"
+        >
+            <div class="bg-white rounded-xl shadow-lg w-96 p-6">
+                <h3 class="text-lg font-bold mb-4">Join a Board</h3>
+                <input
+                    id="join-code"
+                    type="text"
+                    placeholder="Enter collaboration code"
+                    class="w-full border px-3 py-2 rounded-lg mb-4"
+                />
+                <div class="flex justify-end gap-2">
+                    <button
+                        id="cancel-join-modal"
+                        class="px-4 py-2 rounded-lg bg-gray-200"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        id="submit-join-request"
+                        class="px-4 py-2 rounded-lg bg-green-600 text-white"
+                    >
+                        Join
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Share Board Modal -->
+        <div
+            id="share-modal"
+            class="fixed inset-0 bg-black/50 flex items-center justify-center hidden"
+        >
+            <div class="bg-white rounded-xl shadow-lg w-96 p-6 relative">
+                <h3 class="text-lg font-bold mb-4">Share Board</h3>
+                <p class="mb-2">Share this code with others to collaborate:</p>
+                <div class="flex gap-2">
+                    <input
+                        type="text"
+                        id="share-code"
+                        readonly
+                        class="w-full border px-3 py-2 rounded-lg bg-gray-100 text-gray-700"
+                    />
+                    <button
+                        id="copy-code-btn"
+                        class="px-4 py-2 rounded-lg bg-blue-600 text-white"
+                    >
+                        Copy
+                    </button>
+                </div>
+                <button
+                    id="close-share-modal"
+                    class="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
+                >
+                    &times;
+                </button>
+            </div>
+        </div>
+        <div
+            id="toast-container"
+            class="fixed top-5 right-5 flex flex-col gap-2 z-50"
+        ></div>
+
+        <!-- Add this inside <body> before the <script> tags -->
+
+        <!-- Access Request Modal -->
+        <div
+            id="access-request-modal-overlay"
+            class="fixed inset-0 bg-black/50 flex items-center justify-center hidden"
+        >
+            <div class="bg-white rounded-xl shadow-lg w-96 p-6 relative">
+                <h3 class="text-lg font-bold mb-4">Access Request</h3>
+                <p id="access-request-text" class="mb-4"></p>
+                <div class="flex justify-end gap-2">
+                    <button
+                        id="approve-request"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                    >
+                        Approve
+                    </button>
+                    <button
+                        id="reject-request"
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg"
+                    >
+                        Reject
+                    </button>
+                </div>
+                <button
+                    id="close-access-modal"
+                    class="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
+                >
+                    &times;
+                </button>
+            </div>
+        </div>
+
         <script>
             const profileBtn = document.getElementById("profile-btn");
             const profileMenu = document.getElementById("profile-menu");
@@ -160,18 +358,43 @@
             const createBoardBtn = document.getElementById("create-board");
             const spinner = document.getElementById("loading-spinner");
             const logoutBtn = document.getElementById("logout-btn");
+            const notificationBtn = document.getElementById("notification-btn");
+            const notificationPanel =
+                document.getElementById("notification-panel");
+            const notificationContainer = document.getElementById(
+                "notification-container",
+            );
 
-            // Toggle profile menu
-            profileBtn.addEventListener("click", () => {
-                profileMenu.classList.toggle("hidden");
+            notificationBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                notificationPanel.classList.toggle("hidden");
             });
+
+            document.addEventListener("click", (e) => {
+                if (!notificationContainer.contains(e.target)) {
+                    notificationPanel.classList.add("hidden");
+                }
+            });
+            // Delete modal elements
+            const deleteModalOverlay = document.getElementById(
+                "delete-modal-overlay",
+            );
+            const confirmDeleteBtn = document.getElementById("confirm-delete");
+            const cancelDeleteBtn = document.getElementById("cancel-delete");
+            const closeDeleteModalBtn =
+                document.getElementById("close-delete-modal");
+            let boardToDelete = null;
+
+            // Profile menu toggle
+            profileBtn.addEventListener("click", () =>
+                profileMenu.classList.toggle("hidden"),
+            );
             document.addEventListener("click", (e) => {
                 if (
                     !profileBtn.contains(e.target) &&
                     !profileMenu.contains(e.target)
-                ) {
+                )
                     profileMenu.classList.add("hidden");
-                }
             });
 
             // Logout
@@ -187,14 +410,14 @@
                 }
             });
 
-            // Open modal
+            // Open new board modal
             newBoardBtn.addEventListener("click", () => {
                 modalOverlay.classList.remove("hidden");
                 document.body.classList.add("overflow-hidden");
                 boardNameInput.focus();
             });
 
-            // Close modal
+            // Close modal functions
             function closeModal() {
                 modalOverlay.classList.add("hidden");
                 document.body.classList.remove("overflow-hidden");
@@ -207,14 +430,38 @@
                 if (e.target === modalOverlay) closeModal();
             });
 
-            // Keyboard actions
+            // Delete modal functions
+            function openDeleteModal(boardDiv) {
+                boardToDelete = boardDiv;
+                deleteModalOverlay.classList.remove("hidden");
+                document.body.classList.add("overflow-hidden");
+            }
+            function closeDeleteModal() {
+                deleteModalOverlay.classList.add("hidden");
+                document.body.classList.remove("overflow-hidden");
+                boardToDelete = null;
+            }
+            cancelDeleteBtn.addEventListener("click", closeDeleteModal);
+            closeDeleteModalBtn.addEventListener("click", closeDeleteModal);
             document.addEventListener("keydown", (e) => {
-                if (modalOverlay.classList.contains("hidden")) return;
-                if (e.key === "Escape") closeModal();
-                if (e.key === "Enter") submitBoard();
+                if (
+                    !deleteModalOverlay.classList.contains("hidden") &&
+                    e.key === "Escape"
+                )
+                    closeDeleteModal();
+                if (
+                    !modalOverlay.classList.contains("hidden") &&
+                    e.key === "Escape"
+                )
+                    closeModal();
+                if (
+                    !modalOverlay.classList.contains("hidden") &&
+                    e.key === "Enter"
+                )
+                    submitBoard();
             });
 
-            // Submit board
+            // Submit new board
             async function submitBoard() {
                 const name = boardNameInput.value.trim();
                 if (!name) return;
@@ -239,6 +486,7 @@
             createBoardBtn.addEventListener("click", submitBoard);
 
             // Load boards
+            // Load boards with 3-dots options menu
             async function loadBoards() {
                 try {
                     const res = await fetch("/boards", {
@@ -249,16 +497,30 @@
                     const boards = await res.json();
                     const container =
                         document.getElementById("boards-container");
+
                     container.innerHTML = boards
                         .map(
                             (b) => `
-                        <div class="flex flex-col gap-2 cursor-pointer hover:scale-105 transition relative group" data-id="${b.id}">
+                              <div class="flex flex-col gap-2 cursor-pointer hover:scale-105 transition relative group"
+                                   data-id="${b.id}"
+                                   data-code="${b.collaboration_code || ""}">
+
+
                           <div class="w-full aspect-square bg-gray-200 rounded-xl flex items-center justify-center">
                             <span class="text-gray-600">📋</span>
                           </div>
                           <p class="font-medium text-center">${b.title}</p>
-                          <button class="absolute top-2 right-2 text-red-600 delete-board-btn opacity-0 group-hover:opacity-100 transition-opacity">🗑️</button>
-                        </div>`,
+
+                          <!-- Options Menu -->
+                          <div class="absolute top-2 right-2">
+                            <button class="options-btn text-gray-600 hover:text-gray-800">⋮</button>
+                            <div class="options-menu hidden absolute right-0 mt-1 w-28 bg-white border border-gray-200 rounded shadow-lg z-10">
+                              <button class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 share-board-btn">Share</button>
+                              <button class="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-red-600 delete-board-btn">Delete</button>
+                            </div>
+                          </div>
+                        </div>
+                      `,
                         )
                         .join("");
 
@@ -266,40 +528,65 @@
                     document
                         .querySelectorAll("#boards-container > div")
                         .forEach((boardDiv) => {
-                            // Redirect on board click
-                            boardDiv.addEventListener("click", () => {
-                                const boardId = boardDiv.dataset.id;
-                                window.location.href = `/board.html?id=${boardId}`;
+                            const boardId = boardDiv.dataset.id;
+
+                            // Redirect on board click (except when clicking options)
+                            boardDiv.addEventListener("click", (e) => {
+                                if (
+                                    !e.target.closest(".options-btn") &&
+                                    !e.target.closest(".options-menu")
+                                ) {
+                                    window.location.href = `/board.html?id=${boardId}`;
+                                }
+                            });
+
+                            const optionsBtn =
+                                boardDiv.querySelector(".options-btn");
+                            const optionsMenu =
+                                boardDiv.querySelector(".options-menu");
+
+                            // Toggle options menu
+                            optionsBtn.addEventListener("click", (e) => {
+                                e.stopPropagation();
+                                optionsMenu.classList.toggle("hidden");
+                            });
+
+                            // Close menu when clicking outside
+                            document.addEventListener("click", (e) => {
+                                if (!boardDiv.contains(e.target)) {
+                                    optionsMenu.classList.add("hidden");
+                                }
+                            });
+
+                            // Share button
+                            const shareBtn =
+                                boardDiv.querySelector(".share-board-btn");
+                            shareBtn.addEventListener("click", async (e) => {
+                                e.stopPropagation();
+                                try {
+                                    const res = await fetch(
+                                        `/boards/${boardId}`,
+                                        { credentials: "include" },
+                                    );
+                                    if (!res.ok)
+                                        throw new Error(
+                                            "Failed to fetch board",
+                                        );
+                                    const board = await res.json();
+                                    openShareModal(board.collaboration_code);
+                                    optionsMenu.classList.add("hidden");
+                                } catch (err) {
+                                    alert(err.message);
+                                }
                             });
 
                             // Delete button
                             const deleteBtn =
                                 boardDiv.querySelector(".delete-board-btn");
-                            deleteBtn.addEventListener("click", async (e) => {
-                                e.stopPropagation(); // Prevent redirect
-                                const boardId = boardDiv.dataset.id;
-                                if (
-                                    !confirm(
-                                        "Are you sure you want to delete this board?",
-                                    )
-                                )
-                                    return;
-                                try {
-                                    const res = await fetch(
-                                        `/boards/${boardId}`,
-                                        {
-                                            method: "DELETE",
-                                            credentials: "include",
-                                        },
-                                    );
-                                    if (!res.ok)
-                                        throw new Error(
-                                            "Failed to delete board",
-                                        );
-                                    loadBoards();
-                                } catch (err) {
-                                    alert(err.message);
-                                }
+                            deleteBtn.addEventListener("click", (e) => {
+                                e.stopPropagation();
+                                openDeleteModal(boardDiv);
+                                optionsMenu.classList.add("hidden");
                             });
                         });
                 } catch (err) {
@@ -307,7 +594,145 @@
                 }
             }
 
+            // Confirm deletion
+            confirmDeleteBtn.addEventListener("click", async () => {
+                if (!boardToDelete) return;
+                const boardId = boardToDelete.dataset.id;
+                try {
+                    const res = await fetch(`/boards/${boardId}`, {
+                        method: "DELETE",
+                        credentials: "include",
+                    });
+                    if (!res.ok) throw new Error("Failed to delete board");
+
+                    // Fade out animation
+                    boardToDelete.style.transition =
+                        "opacity 0.3s, transform 0.3s";
+                    boardToDelete.style.opacity = "0";
+                    boardToDelete.style.transform = "scale(0.95)";
+                    setTimeout(() => loadBoards(), 300);
+                } catch (err) {
+                    alert(err.message);
+                } finally {
+                    closeDeleteModal();
+                }
+            });
+
+            /*document
+                .querySelectorAll("#boards-container > div")
+                .forEach((boardDiv) => {
+                    const boardId = boardDiv.dataset.id;
+
+                    // Redirect on click
+                    boardDiv.addEventListener("click", () => {
+                        window.location.href = `/board.html?id=${boardId}`;
+                    });
+
+                    // Delete button click
+                    const deleteBtn =
+                        boardDiv.querySelector(".delete-board-btn");
+                    deleteBtn.addEventListener("click", (e) => {
+                        e.stopPropagation(); // prevent redirect
+                        openDeleteModal(boardDiv);
+                    });
+
+                    // Share button click
+                    const shareBtn = boardDiv.querySelector(".share-board-btn");
+                    shareBtn.addEventListener("click", async (e) => {
+                        e.stopPropagation(); // prevent redirect
+
+                        try {
+                            const res = await fetch(`/boards/${boardId}`, {
+                                method: "GET",
+                                credentials: "include",
+                            });
+                            if (!res.ok)
+                                throw new Error("Failed to fetch board");
+                            const board = await res.json();
+
+                            openShareModal(board.collaboration_code);
+                        } catch (err) {
+                            alert(err.message);
+                        }
+                    });
+                }); */
             document.addEventListener("DOMContentLoaded", loadBoards);
+
+            // --- Collaboration UI ---
+            const shareModal = document.getElementById("share-modal");
+            const shareCodeInput = document.getElementById("share-code");
+            const copyCodeBtn = document.getElementById("copy-code-btn");
+            const closeShareModal =
+                document.getElementById("close-share-modal");
+            const joinModal = document.getElementById("join-modal");
+            const joinBoardBtn = document.getElementById("join-board-btn");
+            const cancelJoinModal =
+                document.getElementById("cancel-join-modal");
+            const submitJoinRequest = document.getElementById(
+                "submit-join-request",
+            );
+
+            // Open join modal
+            joinBoardBtn.addEventListener("click", () => {
+                joinModal.classList.remove("hidden");
+                document.body.classList.add("overflow-hidden");
+            });
+
+            // Close join modal
+            cancelJoinModal.addEventListener("click", () => {
+                joinModal.classList.add("hidden");
+                document.body.classList.remove("overflow-hidden");
+            });
+
+            // Submit join request
+            submitJoinRequest.addEventListener("click", async () => {
+                const code = document.getElementById("join-code").value.trim();
+                if (!code) return alert("Enter a code!");
+
+                try {
+                    const res = await fetch("/boards/request-access", {
+                        method: "POST",
+                        credentials: "include",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ code }),
+                    });
+                    if (!res.ok) throw new Error("Request failed");
+                    alert("Request sent to board owner!");
+                    joinModal.classList.add("hidden");
+                } catch (err) {
+                    alert(err.message);
+                } finally {
+                    document.body.classList.remove("overflow-hidden");
+                }
+            });
+
+            // Copy collaboration code
+            copyCodeBtn.addEventListener("click", () => {
+                navigator.clipboard.writeText(shareCodeInput.value);
+                copyCodeBtn.textContent = "Copied!";
+                setTimeout(() => (copyCodeBtn.textContent = "Copy"), 1500);
+            });
+
+            // Close share modal
+            closeShareModal.addEventListener("click", () => {
+                shareModal.classList.add("hidden");
+                document.body.classList.remove("overflow-hidden");
+            });
+
+            // Example: When user clicks “Share” button (to be added near each board)
+            function openShareModal(code) {
+                const shareModal = document.getElementById("share-modal");
+                const shareCodeInput = document.getElementById("share-code");
+                shareCodeInput.value = code || "No code found";
+                shareModal.classList.remove("hidden");
+                document.body.classList.add("overflow-hidden");
+            }
+        </script>
+        <script type="module">
+            import { initWebSocket } from "/static/ws.js";
+
+            const userId = window.USER_ID || 1;
+            initWebSocket(userId);
         </script>
     </body>
 </html>

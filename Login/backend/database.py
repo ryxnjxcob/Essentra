@@ -10,7 +10,9 @@ settings = get_settings()
 # Database setup
 engine = create_engine(
     settings.database_url,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {}
+    connect_args={"check_same_thread": False}
+    if "sqlite" in settings.database_url
+    else {},
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -33,19 +35,29 @@ class DatabaseManager:
     # Lazy imports so we avoid circular imports
     def get_user_by_email(self, db: Session, email: str):
         from .models import User
+
         return db.query(User).filter(User.email == email).first()
 
     def get_user_by_id(self, db: Session, user_id: int):
         from .models import User
+
         return db.query(User).filter(User.id == user_id).first()
 
-    def create_user(self, db: Session, email: str, hashed_password: str, first_name: str, last_name: str):
+    def create_user(
+        self,
+        db: Session,
+        email: str,
+        hashed_password: str,
+        first_name: str,
+        last_name: str,
+    ):
         from .models import User
+
         user = User(
             email=email,
             hashed_password=hashed_password,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
         )
         db.add(user)
         db.commit()
@@ -58,7 +70,9 @@ class DatabaseManager:
             return False
 
         if user.failed_attempts >= settings.max_login_attempts:
-            lockout_expires = user.last_failed_login + timedelta(minutes=settings.lockout_duration_minutes)
+            lockout_expires = user.last_failed_login + timedelta(
+                minutes=settings.lockout_duration_minutes
+            )
             if datetime.utcnow() < lockout_expires:
                 return True
         return False
@@ -75,12 +89,13 @@ class DatabaseManager:
         db.commit()
         db.refresh(user)
 
-    def store_refresh_token(self, db, user_id: int, token_hash: str, expires_at: datetime):
+    def store_refresh_token(
+        self, db, user_id: int, token_hash: str, expires_at: datetime
+    ):
         from .models import RefreshToken
+
         refresh_token = RefreshToken(
-            user_id=user_id,
-            token_hash=token_hash,
-            expires_at=expires_at
+            user_id=user_id, token_hash=token_hash, expires_at=expires_at
         )
         db.add(refresh_token)
         db.commit()
@@ -89,16 +104,35 @@ class DatabaseManager:
 
     def get_refresh_token(self, db, token_hash: str):
         from .models import RefreshToken
+
         return db.query(RefreshToken).filter_by(token_hash=token_hash).first()
 
     def delete_refresh_token(self, db, token_hash: str):
         from .models import RefreshToken
+
         token = db.query(RefreshToken).filter_by(token_hash=token_hash).first()
         if token:
             db.delete(token)
             db.commit()
             return True
         return False
+
+    def create_notification(
+        db: Session,
+        user_id: int,
+        notif_type: str,
+        message: str,
+        board_id: int | None = None,
+    ):
+        from .models import Notification
+
+        notif = Notification(
+            user_id=user_id, type=notif_type, message=message, board_id=board_id
+        )
+        db.add(notif)
+        db.commit()
+        db.refresh(notif)
+        return notif
 
 
 db_manager = DatabaseManager()

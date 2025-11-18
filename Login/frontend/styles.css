@@ -26,3 +26,61 @@ body {
     z-index: 9999;
     width: 160px;
 }
+
+#notification-container {
+    position: relative;
+    display: inline-block;
+}
+
+.notification-bell {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    position: relative;
+}
+
+#notification-count {
+    background: red;
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    padding: 2px 6px;
+    position: absolute;
+    top: -6px;
+    right: -8px;
+}
+
+#notification-panel {
+    position: absolute;
+    right: 0;
+    top: 35px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    width: 300px;
+    max-height: 350px;
+    overflow-y: auto;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    padding: 10px;
+}
+
+#notification-panel.hidden {
+    display: none;
+}
+
+#notification-list li {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+}
+
+.notification-actions {
+    margin-top: 5px;
+}
+
+.notification-actions button {
+    margin-right: 5px;
+    font-size: 12px;
+}

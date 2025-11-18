@@ -1,10 +1,24 @@
+from datetime import datetime
+
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, ForeignKey, Text, CheckConstraint, func
+    JSON,
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
+import uuid
+import random
+import string
+
 from .database import Base
-from sqlalchemy import JSON
 
 
 class User(Base):
@@ -37,9 +51,13 @@ class Board(Base):
     __tablename__ = "boards"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     title = Column(String, nullable=False)
-    mode = Column(String, CheckConstraint("mode IN ('canvas','notepad')"), default="canvas")
+    mode = Column(
+        String, CheckConstraint("mode IN ('canvas','notepad')"), default="canvas"
+    )
     notepad_content = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -49,12 +67,25 @@ class Board(Base):
     blocks = relationship("Block", back_populates="board", cascade="all, delete")
     notes = relationship("Note", back_populates="board", cascade="all, delete-orphan")
 
+    collaborators = relationship(
+        "Collaboration", back_populates="board", cascade="all, delete-orphan"
+    )
+
+    def generate_collab_code():
+        return "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+    collaboration_code = Column(
+        String(10), unique=True, nullable=False, default=generate_collab_code
+    )
+
 
 class Block(Base):
     __tablename__ = "blocks"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    board_id = Column(Integer, ForeignKey("boards.id", ondelete="CASCADE"), nullable=False)
+    board_id = Column(
+        Integer, ForeignKey("boards.id", ondelete="CASCADE"), nullable=False
+    )
     content = Column(String)
 
     board = relationship("Board", back_populates="blocks")
@@ -64,17 +95,20 @@ class Note(Base):
     __tablename__ = "notes"
 
     id = Column(Integer, primary_key=True, index=True)
-    board_id = Column(Integer, ForeignKey("boards.id", ondelete="CASCADE"), nullable=False)
+    board_id = Column(
+        Integer, ForeignKey("boards.id", ondelete="CASCADE"), nullable=False
+    )
     text = Column(String, default="")
     x = Column(Integer, default=0)
     y = Column(Integer, default=0)
-    width = Column(Integer, default=160)   # ✅ new
+    width = Column(Integer, default=160)  # ✅ new
     height = Column(Integer, default=100)  # ✅ new
 
     board = relationship("Board", back_populates="notes")
     # New fields
-    note_type = Column(String, default="text")   # text, image, checklist, link
-    extra_data = Column(JSON, default={})        # flexible storage
+    note_type = Column(String, default="text")  # text, image, checklist, link
+    extra_data = Column(JSON, default={})  # flexible storage
+
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
@@ -84,3 +118,32 @@ class RefreshToken(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_revoked = Column(Boolean, default=False)
+
+
+class Collaboration(Base):
+    __tablename__ = "collaborations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    board_id = Column(Integer, ForeignKey("boards.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    status = Column(String, default="pending")  # pending, approved, rejected
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    board = relationship("Board", back_populates="collaborators")
+    user = relationship("User")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    type = Column(String, nullable=False)  # e.g., 'access_request', 'access_response'
+    message = Column(String, nullable=False)
+    board_id = Column(Integer, ForeignKey("boards.id"), nullable=True)
+    read = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
