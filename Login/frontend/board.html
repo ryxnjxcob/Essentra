@@ -114,14 +114,112 @@
             <!-- Main Canvas -->
             <main id="canvas"></main>
 
-            <!-- Floating Add Note -->
-            <div class="fixed bottom-6 left-1/2 -translate-x-1/2">
-                <button
-                    id="addNoteBtn"
-                    class="p-5 rounded-full bg-fuchsia-300 text-gray-900 cartoon-btn shadow-xl"
+            <!-- Floating minimal toolbar -->
+            <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-20">
+                <div
+                    class="relative bg-white/95 border border-gray-200 shadow-xl rounded-2xl px-4 py-2 flex items-center gap-4"
                 >
-                    <span class="material-icons">edit</span>
-                </button>
+                    <!-- Left icons: Home, Boards -->
+                    <button
+                        type="button"
+                        class="p-1.5 rounded-full hover:bg-gray-100 transition flex items-center justify-center"
+                        title="Home"
+                    >
+                        <span class="material-icons text-gray-600 text-base"
+                            >home</span
+                        >
+                    </button>
+
+                    <button
+                        type="button"
+                        class="p-1.5 rounded-full hover:bg-gray-100 transition flex items-center justify-center"
+                        title="Boards"
+                    >
+                        <span class="material-icons text-gray-600 text-base"
+                            >folder_open</span
+                        >
+                    </button>
+
+                    <!-- Divider -->
+                    <div class="w-px h-5 bg-gray-200"></div>
+
+                    <!-- Add text note -->
+                    <button
+                        id="addNoteBtn"
+                        type="button"
+                        class="p-1.5 rounded-full hover:bg-gray-100 transition flex items-center justify-center"
+                        title="Add text note"
+                    >
+                        <span class="material-icons text-gray-700 text-base"
+                            >note_add</span
+                        >
+                    </button>
+
+                    <!-- Media trigger -->
+                    <button
+                        id="mediaBtn"
+                        type="button"
+                        class="p-1.5 rounded-full hover:bg-gray-100 transition flex items-center justify-center"
+                        title="Add media"
+                    >
+                        <span class="material-icons text-gray-700 text-base"
+                            >perm_media</span
+                        >
+                    </button>
+
+                    <!-- Hidden file inputs -->
+                    <input
+                        id="imageInput"
+                        type="file"
+                        accept="image/*"
+                        class="hidden"
+                    />
+                    <input
+                        id="audioInput"
+                        type="file"
+                        accept="audio/*"
+                        class="hidden"
+                    />
+                    <input
+                        id="videoInput"
+                        type="file"
+                        accept="video/*"
+                        class="hidden"
+                    />
+
+                    <!-- Media popover -->
+                    <div
+                        id="mediaPopover"
+                        class="hidden absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-full bg-white border border-gray-200 shadow-lg rounded-xl px-3 py-2 flex items-center gap-3"
+                    >
+                        <button
+                            id="mediaImageBtn"
+                            type="button"
+                            class="flex items-center gap-1 text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-full px-2 py-1 transition"
+                        >
+                            <span class="material-icons text-sm">image</span>
+                            <span>Image</span>
+                        </button>
+                        <button
+                            id="mediaAudioBtn"
+                            type="button"
+                            class="flex items-center gap-1 text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-full px-2 py-1 transition"
+                        >
+                            <span class="material-icons text-sm"
+                                >audiotrack</span
+                            >
+                            <span>Audio</span>
+                        </button>
+                        <button
+                            id="mediaVideoBtn"
+                            type="button"
+                            class="flex items-center gap-1 text-xs font-medium text-gray-700 hover:bg-gray-100 rounded-full px-2 py-1 transition"
+                        >
+                            <span class="material-icons text-sm">movie</span>
+                            <span>Video</span>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Zoom + Help -->
@@ -208,9 +306,14 @@
         <script>
             const canvas = document.getElementById("canvas");
             const addNoteBtn = document.getElementById("addNoteBtn");
+            const imageInput = document.getElementById("imageInput");
+            const audioInput = document.getElementById("audioInput");
+            const videoInput = document.getElementById("videoInput");
+
             const boardId = new URLSearchParams(window.location.search).get(
                 "id",
             );
+            // if you're now using cookies for auth, token may be null and that's fine
             const token = localStorage.getItem("access_token");
 
             let activeNote = null,
@@ -218,16 +321,22 @@
                 offsetY = 0;
             let zoom = 1;
 
-            // API Helper
+            // -------- API Helper (cookie + optional Authorization) --------
             async function apiFetch(url, options = {}) {
+                const headers = {
+                    "Content-Type": "application/json",
+                    ...(options.headers || {}),
+                };
+                if (token) {
+                    headers["Authorization"] = `Bearer ${token}`;
+                }
+
                 const res = await fetch(url, {
                     ...options,
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                        ...(options.headers || {}),
-                    },
+                    headers,
+                    credentials: "include", // important if you're using cookies
                 });
+
                 if (!res.ok) {
                     console.error("API error", res.status, await res.text());
                     return null;
@@ -235,11 +344,59 @@
                 return res.json().catch(() => null);
             }
 
-            // CRUD
+            // Toolbar: add text note
+            addNoteBtn.addEventListener("click", createNote);
+
+            // Media popover toggle
+            const mediaBtn = document.getElementById("mediaBtn");
+            const mediaPopover = document.getElementById("mediaPopover");
+
+            mediaBtn.addEventListener("click", (e) => {
+                e.stopPropagation(); // don't trigger global click
+                mediaPopover.classList.toggle("hidden");
+            });
+
+            // Close media popover when clicking outside
+            document.addEventListener("click", (e) => {
+                if (!mediaPopover.classList.contains("hidden")) {
+                    // if click is not inside the popover or on the media button, close it
+                    if (
+                        !mediaPopover.contains(e.target) &&
+                        e.target !== mediaBtn
+                    ) {
+                        mediaPopover.classList.add("hidden");
+                    }
+                }
+            });
+
+            // Media type buttons -> open corresponding hidden file input
+            document
+                .getElementById("mediaImageBtn")
+                .addEventListener("click", () => {
+                    document.getElementById("imageInput").click();
+                    mediaPopover.classList.add("hidden");
+                });
+
+            document
+                .getElementById("mediaAudioBtn")
+                .addEventListener("click", () => {
+                    document.getElementById("audioInput").click();
+                    mediaPopover.classList.add("hidden");
+                });
+
+            document
+                .getElementById("mediaVideoBtn")
+                .addEventListener("click", () => {
+                    document.getElementById("videoInput").click();
+                    mediaPopover.classList.add("hidden");
+                });
+
+            // ---------------- CRUD for notes ----------------
             async function loadNotes() {
                 const notes = await apiFetch(`/boards/${boardId}/notes`);
                 if (notes) notes.forEach(renderNote);
             }
+
             async function createNote() {
                 const newNote = await apiFetch(`/boards/${boardId}/notes`, {
                     method: "POST",
@@ -249,10 +406,13 @@
                         y: 50,
                         width: 160,
                         height: 100,
+                        note_type: "text",
+                        extra_data: {},
                     }),
                 });
                 if (newNote) renderNote(newNote);
             }
+
             async function updateNotePosition(noteEl) {
                 if (!document.body.contains(noteEl)) return;
                 await apiFetch(
@@ -268,6 +428,7 @@
                     },
                 );
             }
+
             async function updateNoteText(noteEl) {
                 if (!document.body.contains(noteEl)) return;
                 await apiFetch(
@@ -278,6 +439,7 @@
                     },
                 );
             }
+
             async function saveNoteSize(noteEl) {
                 if (!document.body.contains(noteEl)) return;
                 await apiFetch(
@@ -291,6 +453,7 @@
                     },
                 );
             }
+
             function deleteNote(noteEl) {
                 const id = noteEl.dataset.id;
                 noteEl.remove();
@@ -298,18 +461,84 @@
                     method: "DELETE",
                     headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
                     },
+                    credentials: "include",
                 })
                     .then((res) =>
                         res.ok
                             ? console.log(`Note ${id} deleted`)
-                            : Promise.reject(),
+                            : Promise.reject(res),
                     )
                     .catch((err) => console.error(err));
             }
 
-            // Context Menu
+            // --------- Media upload + note creation ----------
+            async function uploadFileAndCreateNote(file, type) {
+                if (!file) return;
+
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("board_id", boardId);
+
+                try {
+                    // 1) upload media
+                    const uploadRes = await fetch(`/notes/upload`, {
+                        method: "POST",
+                        body: formData,
+                        credentials: "include",
+                        headers: token
+                            ? { Authorization: `Bearer ${token}` }
+                            : {},
+                    });
+
+                    if (!uploadRes.ok) {
+                        console.error("Upload failed", await uploadRes.text());
+                        alert("Failed to upload media");
+                        return;
+                    }
+
+                    const { url } = await uploadRes.json();
+
+                    // 2) create note with note_type + extra_data.url
+                    const newNote = await apiFetch(`/boards/${boardId}/notes`, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            text: "",
+                            x: 80,
+                            y: 80,
+                            width: type === "image" ? 220 : 260,
+                            height: type === "image" ? 220 : 120,
+                            note_type: type,
+                            extra_data: { url },
+                        }),
+                    });
+
+                    if (newNote) renderNote(newNote);
+                } catch (err) {
+                    console.error(err);
+                    alert("Error uploading media");
+                }
+            }
+
+            imageInput.addEventListener("change", (e) => {
+                const file = e.target.files[0];
+                uploadFileAndCreateNote(file, "image");
+                e.target.value = "";
+            });
+
+            audioInput.addEventListener("change", (e) => {
+                const file = e.target.files[0];
+                uploadFileAndCreateNote(file, "audio");
+                e.target.value = "";
+            });
+
+            videoInput.addEventListener("change", (e) => {
+                const file = e.target.files[0];
+                uploadFileAndCreateNote(file, "video");
+                e.target.value = "";
+            });
+            // ---------------- Context Menu (AI + Delete) ----------------
             function attachContextMenu(noteEl) {
                 noteEl.addEventListener("contextmenu", async (e) => {
                     e.preventDefault();
@@ -322,7 +551,7 @@
                     const summarizeOption =
                         menu.querySelector("#summarizeOption");
 
-                    // Remove previous listeners
+                    // reset listeners
                     deleteOption.replaceWith(deleteOption.cloneNode(true));
                     summarizeOption.replaceWith(
                         summarizeOption.cloneNode(true),
@@ -345,10 +574,15 @@
                                     method: "POST",
                                     headers: {
                                         "Content-Type": "application/json",
-                                        Authorization: `Bearer ${token}`,
+                                        ...(token
+                                            ? {
+                                                  Authorization: `Bearer ${token}`,
+                                              }
+                                            : {}),
                                     },
+                                    credentials: "include",
                                     body: JSON.stringify({
-                                        text: noteEl.textContent,
+                                        text: noteEl.textContent, // for media notes this will usually be empty
                                     }),
                                 });
                                 if (!res.ok)
@@ -380,7 +614,7 @@
                 document.getElementById("contextMenu").classList.add("hidden"),
             );
 
-            // Render Note
+            // ---------------- Render note (text + media types) ----------------
             function renderNote(note) {
                 const noteEl = document.createElement("div");
                 noteEl.className = "note";
@@ -388,22 +622,72 @@
                 noteEl.style.top = note.y + "px";
                 if (note.width) noteEl.style.width = note.width + "px";
                 if (note.height) noteEl.style.height = note.height + "px";
-                noteEl.textContent = note.text;
                 noteEl.dataset.id = note.id;
-                noteEl.contentEditable = true;
 
-                noteEl.onmousedown = (e) => startDrag(e, noteEl);
-                noteEl.onblur = () => updateNoteText(noteEl);
+                const type = note.note_type || "text";
+                const extra = note.extra_data || {};
+
+                // clear & render content
+                noteEl.innerHTML = "";
+
+                if (type === "image" && extra.url) {
+                    const img = document.createElement("img");
+                    img.src = extra.url;
+                    img.alt = note.text || "Image note";
+                    img.className =
+                        "w-full h-full object-contain rounded pointer-events-none";
+                    noteEl.appendChild(img);
+                    noteEl.setAttribute("contenteditable", "false");
+                } else if (type === "audio" && extra.url) {
+                    const audio = document.createElement("audio");
+                    audio.controls = true;
+                    audio.src = extra.url;
+                    audio.className = "w-full";
+                    noteEl.appendChild(audio);
+                    noteEl.setAttribute("contenteditable", "false");
+                } else if (type === "video" && extra.url) {
+                    const video = document.createElement("video");
+                    video.controls = true;
+                    video.src = extra.url;
+                    video.className = "w-full h-full";
+                    noteEl.appendChild(video);
+                    noteEl.setAttribute("contenteditable", "false");
+                } else {
+                    // default: text note
+                    noteEl.textContent = note.text || "New Note";
+                    noteEl.contentEditable = true;
+                    noteEl.onblur = () => updateNoteText(noteEl);
+                }
+
+                // only start drag when not interacting with media/inputs
+                noteEl.addEventListener("mousedown", (e) => {
+                    const tag = e.target.tagName.toLowerCase();
+                    if (
+                        [
+                            "audio",
+                            "video",
+                            "img",
+                            "button",
+                            "input",
+                            "textarea",
+                        ].includes(tag)
+                    ) {
+                        return;
+                    }
+                    startDrag(e, noteEl);
+                });
 
                 attachContextMenu(noteEl);
                 canvas.appendChild(noteEl);
             }
 
-            // Drag & Resize
+            // ---------------- Drag & Resize ----------------
             function startDrag(e, noteEl) {
                 const rect = noteEl.getBoundingClientRect();
                 const isResizing =
-                    e.offsetX > rect.width - 16 || e.offsetY > rect.height - 16;
+                    e.clientX - rect.left > rect.width - 16 ||
+                    e.clientY - rect.top > rect.height - 16;
+
                 if (isResizing) {
                     noteEl.addEventListener(
                         "mouseup",
@@ -414,16 +698,18 @@
                 }
 
                 activeNote = noteEl;
-                offsetX = e.clientX - noteEl.offsetLeft;
-                offsetY = e.clientY - noteEl.offsetTop;
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
                 document.addEventListener("mousemove", dragNote);
                 document.addEventListener("mouseup", stopDrag);
             }
+
             function dragNote(e) {
                 if (!activeNote) return;
                 activeNote.style.left = e.clientX - offsetX + "px";
                 activeNote.style.top = e.clientY - offsetY + "px";
             }
+
             function stopDrag() {
                 if (activeNote) updateNotePosition(activeNote);
                 document.removeEventListener("mousemove", dragNote);
@@ -431,7 +717,7 @@
                 activeNote = null;
             }
 
-            // Zoom & Help
+            // ---------------- Zoom & Help ----------------
             document
                 .getElementById("zoomInBtn")
                 .addEventListener("click", () => {
@@ -440,6 +726,7 @@
                     document.getElementById("zoomLevel").textContent =
                         Math.round(zoom * 100) + "%";
                 });
+
             document
                 .getElementById("zoomOutBtn")
                 .addEventListener("click", () => {
@@ -448,13 +735,16 @@
                     document.getElementById("zoomLevel").textContent =
                         Math.round(zoom * 100) + "%";
                 });
+
             document.getElementById("helpBtn").addEventListener("click", () => {
                 alert(
-                    "👉 Right-click a note to delete\n✏️ Click text to edit\n📦 Drag to move\n↔ Resize with corner handle",
+                    "👉 Right-click a note to delete or summarize\n" +
+                        "✏️ Click text to edit\n" +
+                        "🖼 Upload images/audio/video from the bottom bar\n" +
+                        "📦 Drag to move\n↔ Resize with corner handle",
                 );
             });
 
-            addNoteBtn.addEventListener("click", createNote);
             loadNotes();
         </script>
     </body>
