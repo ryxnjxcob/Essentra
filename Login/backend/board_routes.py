@@ -83,21 +83,43 @@ def create_board(
 
 @router.get("", response_model=List[BoardOut])
 def list_boards(
-    db: Session = Depends(get_database),
-    user: User = Depends(get_current_user),
+    db: Session = Depends(get_database), user: User = Depends(get_current_user)
 ):
-    return db.query(Board).filter(Board.user_id == user.id).all()
+    owned_boards = db.query(Board).filter(Board.user_id == user.id).all()
+
+    collab_boards = (
+        db.query(Board)
+        .join(Collaboration, Collaboration.board_id == Board.id)
+        .filter(Collaboration.user_id == user.id, Collaboration.status == "approved")
+        .all()
+    )
+
+    boards = owned_boards + [b for b in collab_boards if b not in owned_boards]
+    return boards
 
 
 @router.get("/{board_id}", response_model=BoardOut)
-def get_board(
+def get_single_board(
     board_id: int,
     db: Session = Depends(get_database),
     user: User = Depends(get_current_user),
 ):
-    board = user_has_access(db, board_id, user)
+    board = db.query(Board).filter(Board.id == board_id).first()
+
     if not board:
-        raise HTTPException(403, "Access denied")
+        raise HTTPException(404, "Board not found")
+
+    # Check if owner or approved collaborator
+    if board.user_id != user.id:
+        collab = (
+            db.query(Collaboration)
+            .filter_by(board_id=board_id, user_id=user.id, status="approved")
+            .first()
+        )
+
+        if not collab:
+            raise HTTPException(403, "Access denied")
+
     return board
 
 

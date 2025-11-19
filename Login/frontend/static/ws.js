@@ -22,23 +22,36 @@ export function initWebSocket(userId) {
     let data;
     try {
       data = JSON.parse(event.data);
-    } catch (e) {
+    } catch (err) {
+      console.error("Invalid JSON from WS:", event.data);
       return;
     }
 
+    console.log("WS MESSAGE:", data);
+
+    // Access Request (Owner receives)
     if (data.type === "access_request") {
       addNotification(data);
       showToast(
         `${data.requester_name} requested access to "${data.board_title}"`,
         4000,
       );
+
+      // 🔥 IMPORTANT: show modal when owner gets request
+      showAccessRequestModal(data);
     }
 
+    // Access Response (Requester receives)
     if (data.type === "access_response") {
       showToast(
-        `Your access request for "${data.board_title}" was ${data.approved ? "approved" : "rejected"}`,
+        `Your request to join "${data.board_title}" was ${data.approved ? "approved" : "rejected"}`,
         4000,
       );
+
+      // 🔥 Refresh boards automatically for child user
+      if (typeof loadBoards === "function") {
+        loadBoards();
+      }
     }
   };
 }

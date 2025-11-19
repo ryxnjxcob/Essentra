@@ -183,7 +183,7 @@ def get_me(user: User = Depends(get_current_user)):
 # -------------------------------
 app.include_router(auth_router)
 app.include_router(board_router, prefix="/boards", tags=["boards"])
-app.include_router(note_router, prefix="/notes", tags=["notes"])
+app.include_router(note_router)
 app.include_router(summarize.router)
 
 # -------------------------------
