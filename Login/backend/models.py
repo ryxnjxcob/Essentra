@@ -107,7 +107,7 @@ class Note(Base):
     board = relationship("Board", back_populates="notes")
     # New fields
     note_type = Column(String, default="text")  # text, image, checklist, link
-    extra_data = Column(JSON, default={})  # flexible storage
+    extra_data = Column(JSON, default=dict)  # flexible storage
 
 
 class RefreshToken(Base):

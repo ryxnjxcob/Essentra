@@ -5,6 +5,14 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Essentra Dashboard</title>
         <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+        <script>
+            // read logged-in user ID from backend
+            fetch("/auth/me", { credentials: "include" })
+                .then((r) => r.json())
+                .then((user) => {
+                    window.USER_ID = user.id;
+                });
+        </script>
     </head>
     <body
         class="relative flex min-h-screen flex-col bg-white overflow-x-hidden"
@@ -731,8 +739,15 @@
         <script type="module">
             import { initWebSocket } from "/static/ws.js";
 
-            const userId = window.USER_ID || 1;
-            initWebSocket(userId);
+            function waitForUserId() {
+                if (window.USER_ID) {
+                    initWebSocket(window.USER_ID);
+                } else {
+                    setTimeout(waitForUserId, 50);
+                }
+            }
+
+            waitForUserId();
         </script>
     </body>
 </html>

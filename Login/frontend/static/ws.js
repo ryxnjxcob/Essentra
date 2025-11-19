@@ -3,18 +3,37 @@ import { showToast } from "/static/utils.js";
 
 let notifications = [];
 
-// -----------------------------
-// WebSocket
-// -----------------------------
+// =========================================================
+//  WebSocket – Listen for notifications from backend
+// =========================================================
 export function initWebSocket(userId) {
+  if (!userId) {
+    console.error("❌ No USER_ID provided to WebSocket.");
+    return;
+  }
+
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(
-    `${protocol}://${window.location.host}/ws/notifications/${userId}`,
-  );
+  const wsUrl = `${protocol}://${window.location.host}/ws/notifications/${userId}`;
+  const ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => console.log("✅ Notification WebSocket connected:", wsUrl);
+
+  ws.onerror = (e) => console.error("❌ WebSocket error:", e);
+
+  ws.onclose = () => console.log("⚠️ Notification WebSocket disconnected");
 
   ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
+    let data;
+    try {
+      data = JSON.parse(event.data);
+    } catch (err) {
+      console.error("Invalid JSON from WS:", event.data);
+      return;
+    }
 
+    // -----------------------------
+    // Access Request (Owner receives)
+    // -----------------------------
     if (data.type === "access_request") {
       addNotification(data);
       showToast(
@@ -23,21 +42,21 @@ export function initWebSocket(userId) {
       );
     }
 
+    // -----------------------------
+    // Access Response (Requester receives)
+    // -----------------------------
     if (data.type === "access_response") {
       showToast(
-        `Your request to board "${data.board_title}" was ${data.approved ? "approved" : "rejected"}`,
+        `Your request to join "${data.board_title}" was ${data.approved ? "approved" : "rejected"}`,
         4000,
       );
     }
   };
-
-  ws.onopen = () => console.log("✅ WebSocket connected");
-  ws.onclose = () => console.log("⚠️ WebSocket disconnected");
 }
 
-// -----------------------------
-// Access Request Modal
-// -----------------------------
+// =========================================================
+//  Access Request Modal
+// =========================================================
 const accessModalOverlay = document.getElementById(
   "access-request-modal-overlay",
 );
@@ -51,6 +70,7 @@ let currentRequestId = null;
 export function showAccessRequestModal(data) {
   currentRequestId = data.request_id;
   accessRequestText.textContent = `${data.requester_name} wants access to "${data.board_title}"`;
+
   accessModalOverlay.classList.remove("hidden");
   document.body.classList.add("overflow-hidden");
 }
@@ -75,9 +95,9 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// -----------------------------
-// Notifications Tab
-// -----------------------------
+// =========================================================
+//  Notifications Sidebar
+// =========================================================
 const notifBtn = document.getElementById("notification-btn");
 const notifPanel = document.getElementById("notification-panel");
 const notifList = document.getElementById("notification-list");
@@ -92,27 +112,32 @@ function addNotification(data) {
 
 function renderNotifications() {
   notifList.innerHTML = "";
+
   notifications.forEach((notif) => {
     const li = document.createElement("li");
+    li.className = "p-3 border-b";
+
     li.innerHTML = `
       <div><strong>${notif.requester_name}</strong> requested access to <em>${notif.board_title}</em></div>
-      <div class="notification-actions flex gap-2 mt-1">
+      <div class="flex gap-2 mt-2">
         <button class="approve-btn px-2 py-1 bg-blue-600 text-white rounded" data-id="${notif.request_id}">Approve</button>
         <button class="reject-btn px-2 py-1 bg-red-600 text-white rounded" data-id="${notif.request_id}">Reject</button>
       </div>
     `;
+
     notifList.appendChild(li);
   });
 
   notifCount.textContent = notifications.length;
   notifCount.classList.toggle("hidden", notifications.length === 0);
 
-  // Attach buttons
+  // Attach action handlers
   document
     .querySelectorAll(".approve-btn")
     .forEach((btn) =>
       btn.addEventListener("click", () => respondAccess(btn.dataset.id, true)),
     );
+
   document
     .querySelectorAll(".reject-btn")
     .forEach((btn) =>
@@ -120,11 +145,12 @@ function renderNotifications() {
     );
 }
 
-// -----------------------------
-// Respond to access
-// -----------------------------
+// =========================================================
+//  Respond to Access Request
+// =========================================================
 async function respondAccess(requestId, approved) {
   if (!requestId) return;
+
   try {
     const res = await fetch(`/boards/collaboration/${requestId}/respond`, {
       method: "POST",
@@ -132,11 +158,10 @@ async function respondAccess(requestId, approved) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ approve: approved }),
     });
+
     if (!res.ok) throw new Error("Failed to send response");
 
-    // Remove notification after response
-    const index = notifications.findIndex((n) => n.request_id == requestId);
-    if (index !== -1) notifications.splice(index, 1);
+    notifications = notifications.filter((n) => n.request_id != requestId);
     renderNotifications();
   } catch (err) {
     showToast(err.message, 4000);
@@ -144,8 +169,3 @@ async function respondAccess(requestId, approved) {
     closeAccessRequestModal();
   }
 }
-addNotification({
-  requester_name: "Test User",
-  board_title: "Demo Board",
-  request_id: 123,
-});

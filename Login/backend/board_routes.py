@@ -1,5 +1,5 @@
 # board_routes.py
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 from pydantic import BaseModel
@@ -43,6 +43,16 @@ def user_has_access(db: Session, board_id: int, user: User):
 # ------------------------
 # BOARD CRUD
 # ------------------------
+
+
+class AccessDecision(BaseModel):
+    approve: bool
+
+
+class AccessRequest(BaseModel):
+    code: str
+
+
 class BoardCreate(BaseModel):
     title: str
 
@@ -207,3 +217,78 @@ def delete_note(
     db.delete(note)
     db.commit()
     return {"message": "Note deleted"}
+
+
+from fastapi import BackgroundTasks
+
+
+@router.post("/request-access")
+def request_access(
+    req: AccessRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_database),
+    user: User = Depends(get_current_user),
+):
+    # 1. Find board
+    board = db.query(Board).filter(Board.collaboration_code == req.code).first()
+    if not board:
+        raise HTTPException(404, "Invalid collaboration code")
+
+    if board.user_id == user.id:
+        raise HTTPException(400, "You are the owner of this board")
+
+    # 2. Create collaboration request
+    collab = Collaboration(board_id=board.id, user_id=user.id, status="pending")
+    db.add(collab)
+    db.commit()
+    db.refresh(collab)
+
+    # 3. Notify board owner (non-blocking)
+    message = {
+        "type": "access_request",
+        "board_title": board.title,
+        "requester_name": f"{user.first_name} {user.last_name}",
+        "request_id": collab.id,
+    }
+
+    # Correct usage:
+    background_tasks.add_task(notify_user, board.user_id, message)
+
+    return {"message": "Request sent"}
+
+
+@router.post("/collaboration/{request_id}/respond")
+def respond_access(
+    request_id: int,
+    decision: AccessDecision,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_database),
+    user: User = Depends(get_current_user),
+):
+    # Fetch collab
+    collab = db.query(Collaboration).filter(Collaboration.id == request_id).first()
+    if not collab:
+        raise HTTPException(404, "Request not found")
+
+    board = db.query(Board).filter(Board.id == collab.board_id).first()
+    if not board:
+        raise HTTPException(404, "Board not found")
+
+    # Only owner can approve
+    if board.user_id != user.id:
+        raise HTTPException(403, "Only the owner may respond")
+
+    # Approve/reject
+    collab.status = "approved" if decision.approve else "rejected"
+    db.commit()
+
+    # Notify requester
+    message = {
+        "type": "access_response",
+        "approved": decision.approve,
+        "board_title": board.title,
+    }
+
+    background_tasks.add_task(notify_user, collab.user_id, message)
+
+    return {"message": "Decision recorded"}

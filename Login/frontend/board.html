@@ -5,6 +5,7 @@
         <meta content="width=device-width, initial-scale=1.0" name="viewport" />
         <title>Essentra Whiteboarding</title>
         <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
         <link
             href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
             rel="stylesheet"
@@ -43,16 +44,23 @@
             }
             .note {
                 position: absolute;
-                width: 160px;
-                min-height: 100px;
-                padding: 10px;
-                border-radius: 8px;
-                background: #fff59d;
-                box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.15);
+                width: 240px;
+                min-height: 120px;
+                padding: 14px;
+                border-radius: 16px;
+                background: #fff;
+                border: 1px solid #ececec;
+                box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
                 cursor: move;
                 resize: both;
-                overflow: auto;
+                overflow: hidden;
+                transition: box-shadow 0.2s;
             }
+
+            .note:hover {
+                box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+            }
+
             .note[contenteditable="true"]:focus {
                 outline: 2px dashed #4f46e5;
             }
@@ -320,6 +328,8 @@
                 offsetX = 0,
                 offsetY = 0;
             let zoom = 1;
+            let boardSocket;
+            let textDebounce = null;
 
             // -------- API Helper (cookie + optional Authorization) --------
             async function apiFetch(url, options = {}) {
@@ -411,6 +421,12 @@
                     }),
                 });
                 if (newNote) renderNote(newNote);
+                boardSocket.send(
+                    JSON.stringify({
+                        action: "create",
+                        note: newNote,
+                    }),
+                );
             }
 
             async function updateNotePosition(noteEl) {
@@ -430,14 +446,27 @@
             }
 
             async function updateNoteText(noteEl) {
-                if (!document.body.contains(noteEl)) return;
-                await apiFetch(
-                    `/boards/${boardId}/notes/${noteEl.dataset.id}`,
-                    {
-                        method: "PUT",
-                        body: JSON.stringify({ text: noteEl.textContent }),
-                    },
-                );
+                clearTimeout(textDebounce);
+
+                textDebounce = setTimeout(async () => {
+                    await apiFetch(
+                        `/boards/${boardId}/notes/${noteEl.dataset.id}`,
+                        {
+                            method: "PUT",
+                            body: JSON.stringify({ text: noteEl.textContent }),
+                        },
+                    );
+
+                    boardSocket.send(
+                        JSON.stringify({
+                            action: "update",
+                            note: {
+                                id: noteEl.dataset.id,
+                                text: noteEl.textContent,
+                            },
+                        }),
+                    );
+                }, 300);
             }
 
             async function saveNoteSize(noteEl) {
@@ -452,7 +481,44 @@
                         }),
                     },
                 );
+                boardSocket.send(
+                    JSON.stringify({
+                        action: "update",
+                        note: {
+                            id: noteEl.dataset.id,
+                            width: noteEl.offsetWidth,
+                            height: noteEl.offsetHeight,
+                        },
+                    }),
+                );
             }
+
+            function initBoardWS() {
+                const protocol =
+                    window.location.protocol === "https:" ? "wss" : "ws";
+
+                boardSocket = new WebSocket(
+                    `${protocol}://${window.location.host}/ws/board/${boardId}`,
+                );
+
+                boardSocket.onopen = () => console.log("🟢 Board WS Connected");
+                boardSocket.onclose = () =>
+                    console.log("🔴 Board WS Disconnected");
+
+                boardSocket.onmessage = (event) => {
+                    const msg = JSON.parse(event.data);
+
+                    if (msg.action === "create") renderNote(msg.note);
+                    if (msg.action === "update") updateNoteOnCanvas(msg.note);
+                    if (msg.action === "delete") {
+                        document
+                            .querySelector(`[data-id="${msg.note_id}"]`)
+                            ?.remove();
+                    }
+                };
+            }
+
+            initBoardWS();
 
             function deleteNote(noteEl) {
                 const id = noteEl.dataset.id;
@@ -471,6 +537,12 @@
                             : Promise.reject(res),
                     )
                     .catch((err) => console.error(err));
+                boardSocket.send(
+                    JSON.stringify({
+                        action: "delete",
+                        note_id: id,
+                    }),
+                );
             }
 
             // --------- Media upload + note creation ----------
@@ -630,12 +702,17 @@
                 // clear & render content
                 noteEl.innerHTML = "";
 
+                if (type === "image") {
+                    noteEl.style.width = "280px";
+                    noteEl.style.height = "220px";
+                }
+
                 if (type === "image" && extra.url) {
                     const img = document.createElement("img");
                     img.src = extra.url;
                     img.alt = note.text || "Image note";
                     img.className =
-                        "w-full h-full object-contain rounded pointer-events-none";
+                        "w-full h-full object-contain rounded-md pointer-events-none";
                     noteEl.appendChild(img);
                     noteEl.setAttribute("contenteditable", "false");
                 } else if (type === "audio" && extra.url) {
@@ -681,7 +758,30 @@
                 canvas.appendChild(noteEl);
             }
 
+            function updateNoteOnCanvas(updated) {
+                const noteEl = document.querySelector(
+                    `[data-id="${updated.id}"]`,
+                );
+                if (!noteEl) return;
+
+                if (updated.text !== undefined)
+                    noteEl.textContent = updated.text;
+
+                if (updated.x !== undefined)
+                    noteEl.style.left = updated.x + "px";
+
+                if (updated.y !== undefined)
+                    noteEl.style.top = updated.y + "px";
+
+                if (updated.width !== undefined)
+                    noteEl.style.width = updated.width + "px";
+
+                if (updated.height !== undefined)
+                    noteEl.style.height = updated.height + "px";
+            }
+
             // ---------------- Drag & Resize ----------------
+
             function startDrag(e, noteEl) {
                 const rect = noteEl.getBoundingClientRect();
                 const isResizing =
@@ -710,8 +810,23 @@
                 activeNote.style.top = e.clientY - offsetY + "px";
             }
 
-            function stopDrag() {
-                if (activeNote) updateNotePosition(activeNote);
+            async function stopDrag() {
+                if (activeNote) {
+                    await updateNotePosition(activeNote); // save to backend
+
+                    // 🔥 Broadcast to collaborators
+                    boardSocket.send(
+                        JSON.stringify({
+                            action: "update",
+                            note: {
+                                id: activeNote.dataset.id,
+                                x: parseInt(activeNote.style.left),
+                                y: parseInt(activeNote.style.top),
+                            },
+                        }),
+                    );
+                }
+
                 document.removeEventListener("mousemove", dragNote);
                 document.removeEventListener("mouseup", stopDrag);
                 activeNote = null;

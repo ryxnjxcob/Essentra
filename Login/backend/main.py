@@ -33,9 +33,10 @@ from .board_routes import router as board_router
 from .note_routes import router as note_router
 from .models import User
 from .dependencies import get_current_user  # ✅ use the cookie-based version
+
 from . import summarize
 from . import note_routes
-
+from . import ws_routes
 
 # -------------------------------
 # App & config
@@ -167,6 +168,16 @@ def logout(response: Response):
     return RedirectResponse(url="/login.html", status_code=303)
 
 
+@auth_router.get("/me")
+def get_me(user: User = Depends(get_current_user)):
+    return {
+        "id": user.id,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+    }
+
+
 # -------------------------------
 # Routers
 # -------------------------------
@@ -193,6 +204,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MEDIA_DIR = os.path.join(BASE_DIR, "media")
 os.makedirs(MEDIA_DIR, exist_ok=True)
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
+
+app.include_router(ws_routes.router)
 
 # -------------------------------
 # Static frontend
