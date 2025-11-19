@@ -373,16 +373,6 @@
                 "notification-container",
             );
 
-            notificationBtn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                notificationPanel.classList.toggle("hidden");
-            });
-
-            document.addEventListener("click", (e) => {
-                if (!notificationContainer.contains(e.target)) {
-                    notificationPanel.classList.add("hidden");
-                }
-            });
             // Delete modal elements
             const deleteModalOverlay = document.getElementById(
                 "delete-modal-overlay",
