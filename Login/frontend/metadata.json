@@ -1,0 +1,8 @@
+{
+  "name": "Essentra",
+  "description": "A collaborative visual-board application with AI-powered flowchart generation and real-time features.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

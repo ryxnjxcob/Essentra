@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --background: #ffffff;
+    --foreground: #0f172a;
+    --card: rgba(255, 255, 255, 0.8);
+    --card-foreground: #0f172a;
+    --primary: #7c3aed;
+    --primary-foreground: #ffffff;
+}
+.dark {
+    --background: #050508;
+    --foreground: #f8fafc;
+    --card: rgba(20, 20, 25, 0.6);
+    --card-foreground: #f8fafc;
+    --primary: #8b5cf6;
+    --primary-foreground: #ffffff;
+}
+
+body {
+    font-family: "Plus Jakarta Sans", sans-serif;
+    background-color: var(--background);
+    color: var(--foreground);
+    transition:
+        background-color 0.5s ease,
+        color 0.5s ease;
+}
+
+.glass {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.dark .glass {
+    background: rgba(10, 10, 15, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+}
+.dark .glass-card {
+    background: rgba(30, 30, 40, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.mesh-gradient {
+    background-color: hsla(270, 50%, 40%, 1);
+    background-image:
+        radial-gradient(
+            at 80% 0%,
+            hsla(189, 100%, 56%, 1) 0px,
+            transparent 50%
+        ),
+        radial-gradient(
+            at 0% 50%,
+            hsla(355, 100%, 93%, 1) 0px,
+            transparent 50%
+        ),
+        radial-gradient(
+            at 80% 50%,
+            hsla(340, 100%, 76%, 1) 0px,
+            transparent 50%
+        ),
+        radial-gradient(
+            at 0% 100%,
+            hsla(22, 100%, 77%, 1) 0px,
+            transparent 50%
+        ),
+        radial-gradient(
+            at 80% 100%,
+            hsla(242, 100%, 70%, 1) 0px,
+            transparent 50%
+        ),
+        radial-gradient(at 0% 0%, hsla(343, 100%, 76%, 1) 0px, transparent 50%);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.3);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.6);
+}
