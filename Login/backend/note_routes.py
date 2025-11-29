@@ -1,5 +1,7 @@
 # note_routes.py
 import os
+import requests
+import urllib.parse
 from uuid import uuid4
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import JSONResponse

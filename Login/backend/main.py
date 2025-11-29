@@ -1,42 +1,40 @@
-from fastapi import (
-    Body,
-    FastAPI,
-    Depends,
-    HTTPException,
-    status,
-    Request,
-    Response,
-    APIRouter,
-    Form,
-)
-from fastapi.responses import JSONResponse, RedirectResponse
-from fastapi.security import HTTPBearer
-from fastapi.templating import Jinja2Templates
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
-from datetime import datetime, timezone, timedelta
 import hashlib
 import logging
 import os
+from datetime import datetime, timedelta, timezone
 
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    FastAPI,
+    Form,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.security import HTTPBearer
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+from . import note_routes, summarize, ws_routes
+from .board_routes import router as board_router
 
 # Local imports
 from .config import get_settings
-from .database import get_database, db_manager
-from .security import security, verify_rate_limit, logger
+from .database import db_manager, get_database
+from .dependencies import get_current_user  # ✅ use the cookie-based version
+from .models import User
+from .note_routes import router as note_router
 from .schemas import (
     UserRegister,
     UserResponse,
 )
-from .board_routes import router as board_router
-from .note_routes import router as note_router
-from .models import User
-from .dependencies import get_current_user  # ✅ use the cookie-based version
-
-from . import summarize
-from . import note_routes
-from . import ws_routes
+from .security import logger, security, verify_rate_limit
 
 # -------------------------------
 # App & config
@@ -129,15 +127,14 @@ def login(
 
     if db_manager.is_user_locked(user):
         raise HTTPException(
-            status_code=status.HTTP_423_LOCKED,
-            detail="Account temporarily locked due to too many failed attempts",
+            status_code=status.HTTP_423_LOCKED, detail="Account temporarily locked"
         )
 
     if not security.verify_password(password, user.hashed_password):
         db_manager.update_user_login(db, user, False)
         raise auth_error
 
-    # Successful login
+    # Login success
     db_manager.update_user_login(db, user, True)
 
     access_token = security.create_access_token({"sub": str(user.id)})
@@ -149,13 +146,35 @@ def login(
     )
     db_manager.store_refresh_token(db, user.id, refresh_token_hash, expires_at)
 
-    # ✅ Create redirect response and set cookies on it
-    response = RedirectResponse(url="/dashboard.html", status_code=303)
-    response.set_cookie(
-        "access_token", access_token, httponly=True, samesite="lax", path="/"
+    response = JSONResponse(
+        content={
+            "success": True,
+            "redirect": "/app/dashboard",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+            },
+        }
     )
+
     response.set_cookie(
-        "refresh_token", refresh_token, httponly=True, samesite="lax", path="/"
+        "access_token",
+        access_token,
+        httponly=True,
+        secure=False,  # True in production HTTPS
+        samesite="lax",
+        path="/",
+    )
+
+    response.set_cookie(
+        "refresh_token",
+        refresh_token,
+        httponly=True,
+        secure=False,  # True in production HTTPS
+        samesite="lax",
+        path="/",
     )
 
     return response
@@ -213,5 +232,5 @@ app.include_router(ws_routes.router)
 
 FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
 
-app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")

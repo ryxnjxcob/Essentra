@@ -13,12 +13,14 @@ import {
   MousePointer2,
   Plus,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface LandingPageProps {
   onGetStarted: () => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
+  const navigate = useNavigate();
   return (
     <div className="flex flex-col min-h-screen bg-background overflow-hidden selection:bg-primary/30 selection:text-primary">
       {/* Hero Section */}
@@ -77,7 +79,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             style={{ animationDelay: "0.4s" }}
           >
             <button
-              onClick={onGetStarted}
+              onClick={() => navigate("/app/register")}
               className="group relative px-10 py-5 rounded-full bg-foreground text-background font-bold text-lg shadow-2xl hover:shadow-primary/50 hover:scale-105 transition-all duration-300 overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>

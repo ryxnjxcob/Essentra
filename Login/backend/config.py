@@ -5,6 +5,7 @@ Handles environment variables and app settings.
 
 import os
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings
 
 
@@ -30,6 +31,8 @@ class Settings(BaseSettings):
     bcrypt_rounds: int = 12
     max_login_attempts: int = 5
     lockout_duration_minutes: int = 15
+
+    zhipu_api_key: str | None = None
 
     # Password Reset
     reset_token_expire_minutes: int = 30
