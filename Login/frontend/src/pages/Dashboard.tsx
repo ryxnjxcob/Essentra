@@ -25,6 +25,11 @@ interface DashboardProps {
   onJoinBoard: (code: string) => void;
   onDeleteBoard: (id: string) => void;
   onOpenBoard: (id: string) => void;
+
+  // NEW:
+  requests: any[];
+  onApproveRequest: (requestId: number) => void;
+  onRejectRequest: (requestId: number) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -34,6 +39,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   onJoinBoard,
   onDeleteBoard,
   onOpenBoard,
+  requests,
+  onApproveRequest,
+  onRejectRequest,
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -141,6 +149,55 @@ const Dashboard: React.FC<DashboardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Collaboration Requests */}
+      {requests && requests.length > 0 && (
+        <div className="mb-12 animate-fade-in">
+          <h2 className="text-xl font-bold text-foreground mb-4">
+            Collaboration Requests
+          </h2>
+
+          <div className="space-y-4">
+            {requests.map((req) => (
+              <div
+                key={req.id}
+                className="bg-white dark:bg-[#151518] border border-gray-200 dark:border-white/10 rounded-2xl p-5 shadow-sm"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-foreground text-lg">
+                      {req.requester_name ||
+                        req.data?.user?.name ||
+                        "Unknown User"}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      wants to join{" "}
+                      <strong className="text-foreground">
+                        {req.board_title || req.data?.board_title}
+                      </strong>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => onApproveRequest(req.id)}
+                    className="flex-1 py-2.5 text-white bg-green-600 hover:bg-green-700 rounded-xl font-bold transition-all"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => onRejectRequest(req.id)}
+                    className="flex-1 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-xl font-bold transition-all"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Grid */}
       {filteredBoards.length > 0 ? (

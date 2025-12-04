@@ -1,8 +1,20 @@
+// src/routes/ProtectedRoute.tsx
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
-const ProtectedRoute = ({ user, children }: any) => {
-  if (!user) return <Navigate to="/app/login" replace />;
+interface ProtectedRouteProps {
+  user: any;
+  children: JSX.Element;
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ user, children }) => {
+  const location = useLocation();
+
+  if (!user) {
+    return (
+      <Navigate to="/app/login" state={{ from: location.pathname }} replace />
+    );
+  }
 
   return children;
 };

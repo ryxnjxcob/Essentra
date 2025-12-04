@@ -1,11 +1,10 @@
 import axios from "axios";
 
-const API = axios.create({
-  baseURL: "/api",
-  withCredentials: true,
-});
+axios.defaults.withCredentials = true;
 
 export async function getCurrentUser() {
-  const res = await axios.get("/api/auth/me", { withCredentials: true });
+  const res = await axios.get("/auth/me", {
+    withCredentials: true,
+  });
   return res.data;
 }

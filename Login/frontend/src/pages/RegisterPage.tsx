@@ -25,7 +25,7 @@ const RegisterPage: React.FC = () => {
       const [firstName, ...last] = name.trim().split(" ");
 
       const res = await axios.post(
-        "/api/auth/register",
+        "/auth/register",
         {
           first_name: firstName || "",
           last_name: last.join(" ") || "",

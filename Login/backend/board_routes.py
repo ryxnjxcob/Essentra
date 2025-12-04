@@ -1,14 +1,17 @@
 # board_routes.py
-from fastapi import APIRouter, Depends, HTTPException, status, Body, BackgroundTasks
-from sqlalchemy.orm import Session
-from typing import List
-from pydantic import BaseModel
+import random
+import string
 import uuid
+from typing import List
+
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from .database import get_database
-from .models import Board, Note, User, Collaboration, Notification
 from .dependencies import get_current_user
-from .schemas import NoteCreate, NoteUpdate, NoteResponse
+from .models import Board, Collaboration, Note, Notification, User
+from .schemas import NoteCreate, NoteResponse, NoteUpdate
 from .ws_routes import notify_user
 
 router = APIRouter(tags=["boards"])
@@ -17,6 +20,13 @@ router = APIRouter(tags=["boards"])
 # ------------------------
 # Helper: Access Check
 # ------------------------
+
+
+def generate_short_code(length=6):
+    chars = string.ascii_uppercase + string.digits
+    return "".join(random.choices(chars, k=length))
+
+
 def user_has_access(db: Session, board_id: int, user: User):
     """Returns board if the user owns it or is an approved collaborator."""
     board = db.query(Board).filter(Board.id == board_id).first()
@@ -73,7 +83,7 @@ def create_board(
     user: User = Depends(get_current_user),
 ):
     board = Board(
-        title=data.title, user_id=user.id, collaboration_code=str(uuid.uuid4())
+        title=data.title, user_id=user.id, collaboration_code=generate_short_code()
     )
     db.add(board)
     db.commit()
@@ -314,3 +324,30 @@ def respond_access(
     background_tasks.add_task(notify_user, collab.user_id, message)
 
     return {"message": "Decision recorded"}
+
+
+@router.get("/collaboration/requests")
+def list_pending_requests(
+    db: Session = Depends(get_database), user: User = Depends(get_current_user)
+):
+    # only owners see the requests
+    pending = (
+        db.query(Collaboration, Board, User)
+        .join(Board, Collaboration.board_id == Board.id)
+        .join(User, Collaboration.user_id == User.id)
+        .filter(Board.user_id == user.id)
+        .filter(Collaboration.status == "pending")
+        .all()
+    )
+
+    result = []
+    for collab, board, requester in pending:
+        result.append(
+            {
+                "id": collab.id,
+                "board_title": board.title,
+                "requester_name": f"{requester.first_name} {requester.last_name}",
+            }
+        )
+
+    return result

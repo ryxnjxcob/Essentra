@@ -11,13 +11,11 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: "0.0.0.0",
       allowedHosts: ["*"],
-
-      // FIXED: Proxy MUST be inside server
       proxy: {
         "/api": {
           target: "http://127.0.0.1:8000",
           changeOrigin: true,
-          rewrite: (p) => p.replace(/^\/api/, ""),
+          secure: false,
         },
       },
     },

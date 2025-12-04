@@ -15,7 +15,7 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.security import HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -210,7 +210,12 @@ app.include_router(summarize.router)
 # -------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ✅ frontend now served by FastAPI
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],  # ✅ frontend now served by FastAPI
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -224,13 +229,29 @@ MEDIA_DIR = os.path.join(BASE_DIR, "media")
 os.makedirs(MEDIA_DIR, exist_ok=True)
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
-app.include_router(ws_routes.router)
+app.include_router(ws_routes.router, prefix="")
 
 # -------------------------------
-# Static frontend
+# Static frontend (Vite build)
 # -------------------------------
 
-FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
+FRONTEND_DIST = os.path.join(BASE_DIR, "..", "frontend", "dist")
 
-app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
-app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+# Serve actual static assets (CSS, JS, images)
+app.mount(
+    "/assets",
+    StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")),
+    name="assets",
+)
+
+
+# Serve index.html for the root route
+@app.get("/")
+async def serve_root():
+    return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
+
+
+# Serve index.html for any React Router route under /app/*
+@app.get("/app/{path:path}")
+async def serve_app_routes(path: str):
+    return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))

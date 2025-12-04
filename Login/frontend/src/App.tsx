@@ -1,3 +1,4 @@
+// src/App.tsx
 import React, { useEffect, useState } from "react";
 import {
   BrowserRouter,
@@ -7,53 +8,70 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import Header from "./components/ui/Header";
-import LandingPage from "./pages/LandingPage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import DashboardContainer from "./pages/DashboardContainer";
-import BoardEditor from "./pages/BoardEditor";
-import NotepadEditor from "./pages/NotepadEditor";
-import ProtectedRoute from "./routes/ProtectedRoute";
-import { getCurrentUser } from "./api/me";
+import Header from "@/components/ui/Header";
+import LandingPage from "@/pages/LandingPage";
+import LoginPage from "@/pages/LoginPage";
+import RegisterPage from "@/pages/RegisterPage";
+import DashboardContainer from "@/pages/DashboardContainer";
+import BoardLoader from "@/pages/BoardLoader";
+import NotepadEditor from "@/pages/NotepadEditor";
+import ProtectedRoute from "@/routes/ProtectedRoute";
+import { getCurrentUser } from "@/api/me";
+import { User } from "@/types";
 
-const AppWrapper = () => {
-  return (
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  );
+const AppWrapper: React.FC = () => (
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>
+);
+
+const normalizeUser = (u: any): User => {
+  const name =
+    (u.first_name || u.last_name
+      ? `${u.first_name || ""} ${u.last_name || ""}`.trim()
+      : u.name) || u.email;
+  const avatar =
+    u.avatar ||
+    `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(
+      name || "User",
+    )}`;
+  return {
+    id: u.id,
+    email: u.email,
+    first_name: u.first_name,
+    last_name: u.last_name,
+    name,
+    avatar,
+  };
 };
 
 const App: React.FC = () => {
   const navigate = useNavigate();
 
   const [isDark, setIsDark] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
-  // Theme effect
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
   }, [isDark]);
 
-  // Auto-login check
   useEffect(() => {
-    async function loadUser() {
+    (async () => {
       try {
         const me = await getCurrentUser();
-        setUser(me);
+        if (me) {
+          setUser(normalizeUser(me));
+        } else {
+          setUser(null);
+        }
       } catch {
         setUser(null);
+      } finally {
+        setLoadingUser(false);
       }
-      setLoadingUser(false);
-    }
-    loadUser();
+    })();
   }, []);
-
-  if (loadingUser) {
-    return <div className="bg-white dark:bg-black w-full h-screen" />;
-  }
 
   const handleLogout = () => {
     document.cookie =
@@ -64,13 +82,20 @@ const App: React.FC = () => {
     navigate("/app/login");
   };
 
+  if (loadingUser) {
+    return (
+      <div className="bg-white dark:bg-black w-full h-screen flex items-center justify.center text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans">
-      {/* Global Header */}
       <Header
         user={user}
         isDark={isDark}
-        toggleTheme={() => setIsDark((p) => !p)}
+        toggleTheme={() => setIsDark((prev) => !prev)}
         setView={(page) => {
           if (page === "landing") navigate("/");
           if (page === "login") navigate("/app/login");
@@ -85,7 +110,6 @@ const App: React.FC = () => {
 
       <main>
         <Routes>
-          {/* Landing */}
           <Route
             path="/"
             element={
@@ -93,13 +117,13 @@ const App: React.FC = () => {
             }
           />
 
-          {/* Auth */}
           <Route
             path="/app/login"
             element={
               <LoginPage
                 onLoginSuccess={(u) => {
-                  setUser(u);
+                  const mapped = normalizeUser(u);
+                  setUser(mapped);
                   navigate("/app/dashboard");
                 }}
                 onNavigateToRegister={() => navigate("/app/register")}
@@ -112,7 +136,8 @@ const App: React.FC = () => {
             element={
               <RegisterPage
                 onRegisterSuccess={(u) => {
-                  setUser(u);
+                  const mapped = normalizeUser(u);
+                  setUser(mapped);
                   navigate("/app/dashboard");
                 }}
                 onNavigateToLogin={() => navigate("/app/login")}
@@ -120,7 +145,6 @@ const App: React.FC = () => {
             }
           />
 
-          {/* Dashboard */}
           <Route
             path="/app/dashboard"
             element={
@@ -130,12 +154,14 @@ const App: React.FC = () => {
             }
           />
 
-          {/* Board + Notepad */}
           <Route
             path="/app/board/:id"
             element={
               <ProtectedRoute user={user}>
-                <BoardEditor />
+                <BoardLoader
+                  isDark={isDark}
+                  toggleTheme={() => setIsDark((prev) => !prev)}
+                />
               </ProtectedRoute>
             }
           />
@@ -149,7 +175,6 @@ const App: React.FC = () => {
             }
           />
 
-          {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
