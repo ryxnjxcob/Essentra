@@ -7,8 +7,11 @@ import {
   Video,
   FileText,
   Palette,
+  Bot,
 } from "lucide-react";
 import { Note, NoteType } from "@/types";
+import { summarizeText } from "@/api/summarize";
+import { translateText } from "@/api/translate";
 
 declare var mermaid: any;
 
@@ -160,6 +163,7 @@ const CanvasNote: React.FC<CanvasNoteProps> = ({
       window.addEventListener("mousemove", handleMove);
       window.addEventListener("mouseup", handleUp);
     }
+
     return () => {
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
@@ -169,6 +173,37 @@ const CanvasNote: React.FC<CanvasNoteProps> = ({
   const handleSaveEdit = () => {
     onUpdate({ text: editContent });
     setIsEditing(false);
+  };
+
+  // 🔥 AI Summarize Action
+  const handleSummarize = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    const selected = window.getSelection()?.toString().trim();
+    const text = selected && selected.length > 0 ? selected : note.text;
+
+    if (!text) return;
+
+    const summary = await summarizeText(text);
+    onUpdate({ text: summary }); // updates note instantly
+  };
+
+  const handleKannada = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const selected = window.getSelection()?.toString().trim();
+    const text = selected && selected.length > 0 ? selected : note.text;
+    if (!text) return;
+    const translated = await translateText(text, "kn");
+    onUpdate({ text: translated });
+  };
+
+  const handleMalayalam = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const selected = window.getSelection()?.toString().trim();
+    const text = selected && selected.length > 0 ? selected : note.text;
+    if (!text) return;
+    const translated = await translateText(text, "ml");
+    onUpdate({ text: translated });
   };
 
   const getIcon = () => {
@@ -277,6 +312,42 @@ const CanvasNote: React.FC<CanvasNoteProps> = ({
               className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-foreground/60 hover:text-primary transition-colors"
             >
               <Edit3 className="w-3 h-3" />
+            </button>
+          )}
+
+          {/*  AI Summarize */}
+          {note.note_type === NoteType.TEXT && (
+            <button
+              onClick={handleSummarize}
+              className="p-1.5 rounded-full hover:bg-blue-500/10
+              text-blue-600 dark:text-blue-400 hover:text-blue-500 transition-colors"
+              title="Summarize using AI"
+            >
+              <Bot className="w-3 h-3" />
+            </button>
+          )}
+
+          {/* 🌐 Kannada */}
+          {note.note_type === NoteType.TEXT && (
+            <button
+              onClick={handleKannada}
+              className="p-1.5 rounded-full hover:bg-green-100 dark:hover:bg-green-900/20
+              text-green-600 dark:text-green-400 transition-colors"
+              title="Translate to Kannada"
+            >
+              🇮🇳
+            </button>
+          )}
+
+          {/* 🌐 Malayalam */}
+          {note.note_type === NoteType.TEXT && (
+            <button
+              onClick={handleMalayalam}
+              className="p-1.5 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/20
+              text-purple-600 dark:text-purple-400 transition-colors"
+              title="Translate to Malayalam"
+            >
+              🧭
             </button>
           )}
 

@@ -42,6 +42,8 @@ const BoardEditor: React.FC<BoardEditorProps> = ({
   toggleTheme,
 }) => {
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  // 🆕 Zoom Level
+  const [zoom, setZoom] = useState(1); // 1 = 100%
   const [showFlowchartModal, setShowFlowchartModal] = useState(false);
   const [flowchartInput, setFlowchartInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -185,6 +187,11 @@ const BoardEditor: React.FC<BoardEditorProps> = ({
       <div
         className="absolute inset-0 z-0 cursor-default overflow-hidden"
         onClick={() => setSelectedNoteId(null)}
+        style={{
+          transform: `scale(${zoom})`,
+          transformOrigin: "50% 50%",
+          transition: "transform 0.2s ease-out",
+        }}
       >
         {notes.map((note) => (
           <CanvasNote
